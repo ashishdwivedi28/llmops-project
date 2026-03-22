@@ -1,0 +1,257 @@
+{
+  "components": {
+    "comp-decision-op": {
+      "executorLabel": "exec-decision-op",
+      "inputDefinitions": {
+        "parameters": {
+          "avg_score": {
+            "parameterType": "NUMBER_DOUBLE"
+          },
+          "threshold": {
+            "parameterType": "NUMBER_DOUBLE"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "parameters": {
+          "Output": {
+            "parameterType": "STRING"
+          }
+        }
+      }
+    },
+    "comp-evaluate-quality-op": {
+      "executorLabel": "exec-evaluate-quality-op",
+      "inputDefinitions": {
+        "parameters": {
+          "location": {
+            "parameterType": "STRING"
+          },
+          "logs_json": {
+            "parameterType": "STRING"
+          },
+          "project_id": {
+            "parameterType": "STRING"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "parameters": {
+          "Output": {
+            "parameterType": "NUMBER_DOUBLE"
+          }
+        }
+      }
+    },
+    "comp-extract-logs-op": {
+      "executorLabel": "exec-extract-logs-op",
+      "inputDefinitions": {
+        "parameters": {
+          "dataset_id": {
+            "parameterType": "STRING"
+          },
+          "project_id": {
+            "parameterType": "STRING"
+          },
+          "table_id": {
+            "parameterType": "STRING"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "parameters": {
+          "Output": {
+            "parameterType": "STRING"
+          }
+        }
+      }
+    }
+  },
+  "defaultPipelineRoot": "gs://project-3e17312f-26d8-4511-821-vertex-pipelines/root",
+  "deploymentSpec": {
+    "executors": {
+      "exec-decision-op": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "decision_op"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef decision_op(avg_score: float, threshold: float) -> str:\n    \"\"\"Gates the pipeline based on quality.\"\"\"\n    if avg_score >= threshold:\n        return f\"\u2705 PASSED: Score {avg_score:.2f} >= {threshold}\"\n    else:\n        # In a real CD pipeline, you might raise an error here to stop deployment\n        return f\"\u274c FAILED: Score {avg_score:.2f} < {threshold}\"\n\n"
+          ],
+          "image": "python:3.10"
+        }
+      },
+      "exec-evaluate-quality-op": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "evaluate_quality_op"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'google-cloud-aiplatform' 'pandas'  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef evaluate_quality_op(\n    logs_json: str, \n    project_id: str,\n    location: str\n) -> float:\n    \"\"\"LLM Judge component.\"\"\"\n    import json\n    import vertexai\n    from vertexai.generative_models import GenerativeModel\n\n    if logs_json == \"[]\":\n        return 0.0\n\n    vertexai.init(project=project_id, location=location)\n    model = GenerativeModel(\"gemini-1.5-flash\")\n\n    logs = json.loads(logs_json)\n    total_score = 0.0\n\n    for log in logs:\n        prompt = (\n            f\"Rate this response 1-10 for helpfulness.\\n\"\n            f\"User: {log.get('user_input', '')}\\nBot: {log.get('output', '')}\\n\"\n            f\"Output ONLY the number.\"\n        )\n        try:\n            resp = model.generate_content(prompt)\n            score = float(resp.text.strip())\n            total_score += score\n        except:\n            pass # Skip invalid\n\n    return total_score / len(logs) if logs else 0.0\n\n"
+          ],
+          "image": "python:3.10"
+        }
+      },
+      "exec-extract-logs-op": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "extract_logs_op"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'google-cloud-bigquery' 'pandas' 'db-dtypes' 'pyarrow'  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef extract_logs_op(\n    project_id: str, \n    dataset_id: str, \n    table_id: str\n) -> str:\n    \"\"\"Extracts latest logs from BigQuery as a JSON string.\"\"\"\n    from google.cloud import bigquery\n    import pandas as pd\n\n    client = bigquery.Client(project=project_id)\n    # Fetch last 5 logs for demo purposes\n    query = f\"\"\"\n        SELECT user_input, output \n        FROM `{project_id}.{dataset_id}.{table_id}` \n        ORDER BY timestamp DESC \n        LIMIT 5\n    \"\"\"\n    try:\n        df = client.query(query).to_dataframe()\n        return df.to_json(orient=\"records\")\n    except Exception as e:\n        print(f\"Query failed: {e}\")\n        return \"[]\"\n\n"
+          ],
+          "image": "python:3.10"
+        }
+      }
+    }
+  },
+  "pipelineInfo": {
+    "description": "Automated Offline Evaluation Pipeline",
+    "name": "llmops-eval-pipeline"
+  },
+  "root": {
+    "dag": {
+      "tasks": {
+        "decision-op": {
+          "cachingOptions": {
+            "enableCache": true
+          },
+          "componentRef": {
+            "name": "comp-decision-op"
+          },
+          "dependentTasks": [
+            "evaluate-quality-op"
+          ],
+          "inputs": {
+            "parameters": {
+              "avg_score": {
+                "taskOutputParameter": {
+                  "outputParameterKey": "Output",
+                  "producerTask": "evaluate-quality-op"
+                }
+              },
+              "threshold": {
+                "componentInputParameter": "min_score"
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "decision-op"
+          }
+        },
+        "evaluate-quality-op": {
+          "cachingOptions": {
+            "enableCache": true
+          },
+          "componentRef": {
+            "name": "comp-evaluate-quality-op"
+          },
+          "dependentTasks": [
+            "extract-logs-op"
+          ],
+          "inputs": {
+            "parameters": {
+              "location": {
+                "componentInputParameter": "location"
+              },
+              "logs_json": {
+                "taskOutputParameter": {
+                  "outputParameterKey": "Output",
+                  "producerTask": "extract-logs-op"
+                }
+              },
+              "project_id": {
+                "componentInputParameter": "project_id"
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "evaluate-quality-op"
+          }
+        },
+        "extract-logs-op": {
+          "cachingOptions": {
+            "enableCache": true
+          },
+          "componentRef": {
+            "name": "comp-extract-logs-op"
+          },
+          "inputs": {
+            "parameters": {
+              "dataset_id": {
+                "componentInputParameter": "bq_dataset"
+              },
+              "project_id": {
+                "componentInputParameter": "project_id"
+              },
+              "table_id": {
+                "componentInputParameter": "bq_table"
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "extract-logs-op"
+          }
+        }
+      }
+    },
+    "inputDefinitions": {
+      "parameters": {
+        "bq_dataset": {
+          "defaultValue": "llmops_logs",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "bq_table": {
+          "defaultValue": "request_logs",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "location": {
+          "defaultValue": "us-central1",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "min_score": {
+          "defaultValue": 7.0,
+          "isOptional": true,
+          "parameterType": "NUMBER_DOUBLE"
+        },
+        "project_id": {
+          "defaultValue": "project-3e17312f-26d8-4511-821",
+          "isOptional": true,
+          "parameterType": "STRING"
+        }
+      }
+    }
+  },
+  "schemaVersion": "2.1.0",
+  "sdkVersion": "kfp-2.16.0"
+}

@@ -1,0 +1,192 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "LLMOps Pipeline",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invoke": {
+      "post": {
+        "summary": "Invoke Pipeline",
+        "operationId": "invoke_pipeline_invoke_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvokeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvokeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InvokeRequest": {
+        "properties": {
+          "app_id": {
+            "type": "string",
+            "title": "App Id"
+          },
+          "user_input": {
+            "type": "string",
+            "title": "User Input"
+          }
+        },
+        "type": "object",
+        "required": [
+          "app_id",
+          "user_input"
+        ],
+        "title": "InvokeRequest"
+      },
+      "InvokeResponse": {
+        "properties": {
+          "app_id": {
+            "type": "string",
+            "title": "App Id"
+          },
+          "user_input": {
+            "type": "string",
+            "title": "User Input"
+          },
+          "config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config"
+          },
+          "task_detection": {
+            "$ref": "#/components/schemas/TaskDetectionResult"
+          },
+          "pipeline_executed": {
+            "type": "string",
+            "title": "Pipeline Executed"
+          },
+          "output": {
+            "type": "string",
+            "title": "Output"
+          },
+          "latency_ms": {
+            "type": "number",
+            "title": "Latency Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "app_id",
+          "user_input",
+          "config",
+          "task_detection",
+          "pipeline_executed",
+          "output",
+          "latency_ms"
+        ],
+        "title": "InvokeResponse"
+      },
+      "TaskDetectionResult": {
+        "properties": {
+          "needs_rag": {
+            "type": "boolean",
+            "title": "Needs Rag"
+          },
+          "needs_agent": {
+            "type": "boolean",
+            "title": "Needs Agent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "needs_rag",
+          "needs_agent"
+        ],
+        "title": "TaskDetectionResult"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Environment — NEVER commit these
+.env
+.env.local
+.env.production
+*.env
+
+# Node
+node_modules/
+.next/
+out/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+.terraform.lock.hcl
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Docker
+*.tar
+
+# GCP credentials
+*-credentials.json
+gcp-key.json
+service-account-key.json
+
+# Agent Context
+00_AGENT_GROUNDING_CONTEXT.md
+test_llm.py
+00_AGENT_GROUNDING_CONTEXT.md:Zone.Identifier
+

@@ -1,0 +1,69 @@
+name: Backend — Build and Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "xyz/**"
+      - ".github/workflows/backend-deploy.yml"
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: asia-south1
+  SERVICE_NAME: llmops-backend
+  IMAGE: asia-south1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/llmops-repo/backend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker asia-south1-docker.pkg.dev
+
+      - name: Build Docker image
+        working-directory: xyz
+        run: docker build -t $IMAGE:${{ github.sha }} -t $IMAGE:latest .
+
+      - name: Push Docker image
+        run: |
+          docker push $IMAGE:${{ github.sha }}
+          docker push $IMAGE:latest
+
+      - name: Deploy to Cloud Run
+        # Removed GOOGLE_API_KEY secret injection.
+        # Added GOOGLE_CLOUD_PROJECT env var for Vertex AI.
+        run: |
+          gcloud run deploy $SERVICE_NAME \
+            --image $IMAGE:${{ github.sha }} \
+            --region $REGION \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-secrets=ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest \
+            --set-env-vars=ENVIRONMENT=production \
+            --set-env-vars=GOOGLE_CLOUD_PROJECT=${{ secrets.GCP_PROJECT_ID }} \
+            --memory=512Mi \
+            --cpu=1 \
+            --min-instances=0 \
+            --max-instances=10 \
+            --port=8080
+
+      - name: Show backend URL
+        run: |
+          gcloud run services describe $SERVICE_NAME \
+            --region $REGION \
+            --format="value(status.url)"

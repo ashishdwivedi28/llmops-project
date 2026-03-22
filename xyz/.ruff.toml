@@ -1,0 +1,28 @@
+line-length = 100
+target-version = "py311"
+indent-width = 4
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # bugbear
+    "C4",   # flake8-comprehensions
+    "UP",   # pyupgrade
+    "N",    # pep8-naming
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # do not perform function calls in default arguments (FastAPI pattern)
+    "N806",  # variable in function should be lowercase (false positive for KFP)
+    "UP017", # do not use datetime.UTC (requires python 3.11+)
+]
+
+[lint.isort]
+known-first-party = ["app", "utils", "pipelines"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

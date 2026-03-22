@@ -1,0 +1,45 @@
+{
+  "mock_app": {
+    "pipeline": "llm",
+    "model": "mock",
+    "active_model": "mock",
+    "active_prompt_version": "v1",
+    "prompt_template": "You are a helpful assistant. User asked: {user_input}",
+    "system_prompt": "You are a helpful assistant.",
+    "evaluation_threshold": 3.0,
+    "description": "Mock app for testing without API keys"
+  },
+  "default_llm": {
+    "pipeline": "auto",
+    "model": "gemini-2.5-flash",
+    "active_model": "gemini-2.5-flash",
+    "active_prompt_version": "v1",
+    "prompt_template": "You are a helpful general assistant.\n\nUser: {user_input}\nAssistant:",
+    "system_prompt": "You are a helpful, accurate, and concise general assistant.",
+    "evaluation_threshold": 4.0,
+    "description": "General purpose LLM assistant with auto task detection"
+  },
+  "rag_bot": {
+    "pipeline": "rag",
+    "model": "gemini-2.5-flash",
+    "active_model": "gemini-2.5-flash",
+    "active_prompt_version": "v1",
+    "prompt_template": "Context from documents:\n{context}\n\nUser question: {user_input}\n\nAnswer based ONLY on the context above. If the context does not contain the answer, say so clearly:",
+    "system_prompt": "You are a document assistant. Answer ONLY from the provided context.",
+    "top_k": 3,
+    "rag_corpus_id": "",
+    "evaluation_threshold": 4.0,
+    "description": "Document Q&A — always uses RAG pipeline"
+  },
+  "code_agent": {
+    "pipeline": "agent",
+    "model": "gemini-2.5-flash",
+    "active_model": "gemini-2.5-flash",
+    "active_prompt_version": "v1",
+    "prompt_template": "User request: {user_input}",
+    "system_prompt": "You are an expert coding assistant. Think step by step. Use available tools when needed. Always explain your reasoning before taking action.",
+    "max_iterations": 5,
+    "evaluation_threshold": 4.0,
+    "description": "Agentic coding assistant — always uses Agent pipeline"
+  }
+}
