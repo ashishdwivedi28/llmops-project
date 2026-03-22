@@ -24,18 +24,27 @@ variable "project_id" {
 variable "region" {
   description = "GCP region"
   type        = string
-  default     = "asia-south1"
+  default     = "us-central1"
+}
+
+variable "github_repo" {
+  description = "GitHub repository (username/repo)"
+  type        = string
+  default     = "ashish-s-dimri/llmops-folder" # Update this to match your actual repo "username/repo"
 }
 
 # Enable required APIs
 # Added aiplatform.googleapis.com for Vertex AI
+# Added iamcredentials.googleapis.com for Workload Identity Federation
 resource "google_project_service" "apis" {
   for_each = toset([
     "run.googleapis.com",
     "artifactregistry.googleapis.com",
     "secretmanager.googleapis.com",
     "cloudbuild.googleapis.com",
-    "aiplatform.googleapis.com", 
+    "aiplatform.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "iam.googleapis.com"
   ])
   service            = each.key
   disable_on_destroy = false
@@ -53,7 +62,9 @@ resource "google_artifact_registry_repository" "llmops" {
 # Secret: Anthropic API Key (Gemini uses Vertex AI, no key needed)
 resource "google_secret_manager_secret" "anthropic_api_key" {
   secret_id = "ANTHROPIC_API_KEY"
-  replication { auto {} }
+  replication {
+    auto {}
+  }
   depends_on = [google_project_service.apis]
 }
 
@@ -91,7 +102,39 @@ resource "google_project_iam_member" "github_sa_user" {
 }
 
 # ---------------------------------------------------------
-# 2. Runtime Service Account (The App itself)
+# 2. Workload Identity Federation (WIF) Setup
+# ---------------------------------------------------------
+resource "google_iam_workload_identity_pool" "github_pool" {
+  workload_identity_pool_id = "github-actions-pool"
+  display_name              = "GitHub Actions Pool"
+  description               = "Identity pool for GitHub Actions"
+  disabled                  = false
+}
+
+resource "google_iam_workload_identity_pool_provider" "github_provider" {
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github_pool.workload_identity_pool_id
+  workload_identity_pool_provider_id = "github-actions-provider"
+  display_name                       = "GitHub Actions Provider"
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.actor"      = "assertion.actor"
+    "attribute.repository" = "assertion.repository"
+  }
+  attribute_condition = "assertion.repository == '${var.github_repo}'"
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
+}
+
+# Bind the GitHub repo to the Service Account
+resource "google_service_account_iam_member" "workload_identity_user" {
+  service_account_id = google_service_account.github_actions.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_pool.name}/attribute.repository/${var.github_repo}"
+}
+
+# ---------------------------------------------------------
+# 3. Runtime Service Account (The App itself)
 # ---------------------------------------------------------
 resource "google_service_account" "backend_sa" {
   account_id   = "llmops-backend-sa"
@@ -122,4 +165,9 @@ output "github_sa_email" {
 
 output "backend_sa_email" {
   value = google_service_account.backend_sa.email
+}
+
+output "workload_identity_provider" {
+  description = "Workload Identity Provider resource name"
+  value       = google_iam_workload_identity_pool_provider.github_provider.name
 }

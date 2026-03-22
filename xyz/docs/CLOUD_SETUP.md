@@ -1,6 +1,6 @@
 # CLOUD_SETUP.md
 # Complete Step-by-Step Guide: GitHub → GCP → Live Application
-# Tailored for: Vertex AI (ADC) Backend + Next.js Frontend + Terraform Infra
+# Tailored for: Vertex AI (ADC) Backend + Next.js Frontend + Terraform Infra + Workload Identity Federation
 
 ---
 
@@ -35,7 +35,7 @@ Open your terminal:
 ```bash
 gcloud auth login
 gcloud config set project YOUR_PROJECT_ID
-gcloud config set compute/region asia-south1
+gcloud config set compute/region us-central1
 ```
 
 Replace YOUR_PROJECT_ID with your actual project ID.
@@ -50,10 +50,17 @@ Replace YOUR_PROJECT_ID with your actual project ID.
 
 ```bash
 cd infra/
+
 terraform init
-terraform plan -var="project_id=YOUR_PROJECT_ID"
-terraform apply -var="project_id=YOUR_PROJECT_ID"
+
+terraform plan -var="project_id=YOUR_PROJECT_ID" -var="github_repo=YOUR_GITHUB_USERNAME/YOUR_REPO_NAME"
+
+terraform apply \
+  -var="project_id=project-3e17312f-26d8-4511-821" \
+  -var="github_repo=ashishdwivedi28/llmops-project"
 ```
+
+**IMPORTANT:** Replace `YOUR_GITHUB_USERNAME/YOUR_REPO_NAME` with your actual repo (e.g., `ashish-s-dimri/llmops-pipeline`).
 
 Type "yes" when prompted.
 
@@ -62,12 +69,14 @@ This creates:
 - Secret Manager secrets (for API keys)
 - Service account for GitHub Actions (`github-actions-deploy`)
 - Service account for Backend Runtime (`llmops-backend-sa`)
+- **Workload Identity Federation Pool & Provider** (Secure authentication without keys)
 - All required IAM permissions
 
 Note the outputs printed at the end:
-- artifact_registry_url → you'll need this
-- github_sa_email → you'll need this
-- backend_sa_email → managed by Terraform, used by Cloud Run
+- `artifact_registry_url`
+- `github_sa_email`
+- `backend_sa_email`
+- `workload_identity_provider` → **You will need this for GitHub Secrets**
 
 ### Step 1.5 — Add your API keys to Secret Manager
 
@@ -87,48 +96,29 @@ echo -n "YOUR_ACTUAL_ANTHROPIC_API_KEY" | \
 
 You have already pushed your code to GitHub. Ensure your repository is private if possible.
 
-### Step 2.2 — Create GitHub Actions Service Account Key
-
-```bash
-# Get the service account email from Terraform output
-SA_EMAIL=$(gcloud iam service-accounts list \
-  --filter="displayName:GitHub Actions" \
-  --format="value(email)")
-
-echo "Service account: $SA_EMAIL"
-
-# Create and download key file
-gcloud iam service-accounts keys create github-actions-key.json \
-  --iam-account=$SA_EMAIL
-
-# Print the key content (copy this for next step)
-cat github-actions-key.json
-```
-
-WARNING: Never commit this key file to git. Delete it immediately after setting GitHub secrets.
-
-### Step 2.3 — Add GitHub Repository Secrets
+### Step 2.2 — Add GitHub Repository Secrets
 
 Go to your GitHub repo → Settings → Secrets and variables → Actions → New repository secret
 
 Add these secrets one by one:
 
-Secret 1:
-  Name:  GCP_PROJECT_ID
-  Value: your-actual-project-id
+**Secret 1:**
+  *   **Name:** `GCP_PROJECT_ID`
+  *   **Value:** `your-actual-project-id`
 
-Secret 2:
-  Name:  GCP_SA_KEY
-  Value: (paste the entire content of github-actions-key.json)
+**Secret 2:**
+  *   **Name:** `GCP_SA_EMAIL`
+  *   **Value:** (Copy `github_sa_email` from Terraform output. e.g. `github-actions-deploy@...`)
 
-Secret 3:
-  Name:  BACKEND_URL
-  Value: (leave empty for now — you'll fill this after backend deploys)
+**Secret 3:**
+  *   **Name:** `GCP_WORKLOAD_IDENTITY_PROVIDER`
+  *   **Value:** (Copy `workload_identity_provider` from Terraform output. e.g. `projects/123456/locations/global/workloadIdentityPools/...`)
 
-After adding secrets, delete the key file from your laptop:
-```bash
-rm github-actions-key.json
-```
+**Secret 4:**
+  *   **Name:** `BACKEND_URL`
+  *   **Value:** (Leave empty for now — you'll fill this after backend deploys)
+
+**Done! No JSON keys required.**
 
 ---
 
@@ -154,46 +144,16 @@ Go to GitHub repo → Settings → Secrets → BACKEND_URL
 Update value to: `https://llmops-backend-xxxx-el.a.run.app`
 (no trailing slash)
 
-### Step 3.3 — Deploy Frontend (Manual First Time)
+### Step 3.3 — Deploy Frontend
 
-We haven't set up a GitHub Action for the frontend yet (only backend). Let's deploy it manually to Cloud Run.
+The frontend deployment is also automated via GitHub Actions, but it needs the `BACKEND_URL` secret we just set.
 
-```bash
-cd final-frontend-llmops/
+1.  After setting `BACKEND_URL` in Step 3.2...
+2.  Go to GitHub Actions tab.
+3.  Select "Frontend — Build and Deploy" workflow.
+4.  Click "Run workflow" (or push a change to `final-frontend-llmops/` folder).
 
-# Set your variables
-PROJECT_ID="YOUR_PROJECT_ID"
-REGION="asia-south1"
-REPO="llmops-repo"
-IMAGE="asia-south1-docker.pkg.dev/$PROJECT_ID/$REPO/frontend"
-BACKEND_URL="https://llmops-backend-xxxx-el.a.run.app" # REPLACE THIS
-
-# Authenticate Docker
-gcloud auth configure-docker asia-south1-docker.pkg.dev
-
-# Build (passing the backend URL as a build arg is crucial for Next.js static generation)
-docker build \
-  --build-arg NEXT_PUBLIC_API_URL=$BACKEND_URL \
-  -t $IMAGE:v1 .
-
-# Push
-docker push $IMAGE:v1
-
-# Deploy
-gcloud run deploy llmops-frontend \
-  --image $IMAGE:v1 \
-  --region $REGION \
-  --platform managed \
-  --allow-unauthenticated \
-  --set-env-vars=NEXT_PUBLIC_API_URL=$BACKEND_URL \
-  --memory=512Mi \
-  --cpu=1 \
-  --port=3000
-```
-
-Wait for deployment. You'll see a URL like:
-  `https://llmops-frontend-xxxx-el.a.run.app`
-
+Wait for deployment. The Action logs will show the Frontend URL.
 Open that URL in your browser.
 
 ---
@@ -206,7 +166,7 @@ Now that you have the frontend URL, update CORS in the backend service so the fr
 FRONTEND_URL="https://llmops-frontend-xxxx-el.a.run.app" # REPLACE THIS
 
 gcloud run services update llmops-backend \
-  --region asia-south1 \
+  --region us-central1 \
   --update-env-vars=ALLOWED_ORIGINS="$FRONTEND_URL,http://localhost:3000"
 ```
 
@@ -234,8 +194,14 @@ Total estimate for development/demo: Under $5/month
 
 ## TROUBLESHOOTING
 
-**Problem:** GitHub Actions fails with "Permission denied"
-**Fix:** Re-check that `GCP_SA_KEY` secret contains valid JSON and the SA `github-actions-deploy` has correct IAM roles (Terraform handles this).
+**Problem:** GitHub Actions fails with "Permission denied" during authentication.
+**Fix:**
+1. Check that `GCP_WORKLOAD_IDENTITY_PROVIDER` secret matches the Terraform output exactly.
+2. Check that `GCP_SA_EMAIL` secret matches the Terraform output.
+3. Ensure the Terraform variable `github_repo` was set correctly to `username/repo` (case sensitive). If you need to change it:
+   ```bash
+   terraform apply -var="project_id=..." -var="github_repo=CorrectUser/CorrectRepo"
+   ```
 
 **Problem:** Backend returns 500 or "Gemini call failed"
 **Fix:** Check Cloud Run logs: `gcloud beta run services logs tail llmops-backend`.
