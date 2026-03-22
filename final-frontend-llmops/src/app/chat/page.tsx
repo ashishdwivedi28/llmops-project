@@ -1,0 +1,226 @@
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { useChat } from "@/hooks/useChat";
+import { AppId } from "@/types/api";
+
+const APP_OPTIONS: { id: AppId; label: string }[] = [
+  { id: "mock_app", label: "Mock App" },
+  { id: "default_llm", label: "General Assistant" },
+  { id: "rag_bot", label: "RAG Bot" },
+  { id: "code_agent", label: "Code Agent" },
+];
+
+export default function ChatPage() {
+  const {
+    messages,
+    isLoading,
+    error,
+    selectedApp,
+    setSelectedApp,
+    sendMessage,
+    clearMessages,
+  } = useChat();
+
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const [inputValue, setInputValue] = useState("");
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim() || isLoading) return;
+    sendMessage(inputValue);
+    setInputValue("");
+  };
+
+  return (
+    // Main Container - Dark Navy Theme
+    <div className="flex flex-col h-screen bg-[#020617] text-gray-100 font-sans">
+      
+      {/* 1. Header (Fixed Top) */}
+      <header className="flex-none bg-[#0f172a] border-b border-gray-800 px-4 py-3 shadow-md z-20">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h1 className="text-lg font-bold tracking-tight text-white">
+              LLMOps <span className="text-blue-500">Chat</span>
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <select
+              value={selectedApp}
+              onChange={(e) => setSelectedApp(e.target.value as AppId)}
+              className="bg-gray-800 border border-gray-700 text-sm text-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-shadow"
+              disabled={isLoading}
+            >
+              {APP_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            
+            <button
+              onClick={clearMessages}
+              disabled={messages.length === 0 || isLoading}
+              className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
+              title="Clear Conversation"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* 2. Chat Container (Scrollable Middle) */}
+      <main className="flex-1 overflow-y-auto scroll-smooth">
+        <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+          
+          {messages.length === 0 && (
+            <div className="h-[60vh] flex flex-col items-center justify-center text-center space-y-4 opacity-50">
+              <div className="w-16 h-16 bg-gray-800 rounded-2xl flex items-center justify-center mb-2">
+                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-medium text-gray-300">Welcome to LLMOps</h3>
+              <p className="text-sm text-gray-500 max-w-sm">
+                Select an application from the top right and start a conversation.
+              </p>
+            </div>
+          )}
+
+          {/* Error Banner */}
+          {error && (
+            <div className="bg-red-900/30 border border-red-800 rounded-xl p-4 flex items-start gap-3">
+              <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <h4 className="text-sm font-semibold text-red-400">Error</h4>
+                <p className="text-sm text-red-200/80 mt-1">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Message List */}
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex flex-col ${
+                msg.role === "user" ? "items-end" : "items-start"
+              }`}
+            >
+              {/* Message Bubble */}
+              <div
+                className={`max-w-[85%] sm:max-w-[75%] px-5 py-3 shadow-md text-sm leading-relaxed ${
+                  msg.role === "user"
+                    ? "bg-blue-600 text-white rounded-2xl rounded-br-none"
+                    : "bg-gray-800 text-gray-100 rounded-2xl rounded-bl-none border border-gray-700"
+                }`}
+              >
+                <div className="whitespace-pre-wrap">{msg.content}</div>
+              </div>
+
+              {/* Assistant Metadata */}
+              {msg.role === "assistant" && msg.metadata && (
+                <div className="mt-2 ml-2 flex flex-wrap gap-2 items-center">
+                  {/* Pipeline Badge */}
+                  <span className="px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase rounded-full bg-purple-600 text-white shadow-sm">
+                    {msg.metadata.pipelineExecuted}
+                  </span>
+                  
+                  {/* Model Badge */}
+                  <span className="px-2 py-0.5 text-[10px] rounded-full bg-gray-700 text-gray-300 border border-gray-600">
+                    {msg.metadata.model}
+                  </span>
+
+                  {/* Latency Badge */}
+                  <span className="px-2 py-0.5 text-[10px] rounded-full bg-green-900/50 text-green-400 border border-green-800">
+                    {msg.metadata.latencyMs.toFixed(0)}ms
+                  </span>
+
+                  {/* Task Chips */}
+                  {msg.metadata.taskDetection.needs_rag && (
+                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-yellow-600/20 text-yellow-500 border border-yellow-600/40">
+                      RAG
+                    </span>
+                  )}
+                  {msg.metadata.taskDetection.needs_agent && (
+                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-600/20 text-red-500 border border-red-600/40">
+                      AGENT
+                    </span>
+                  )}
+
+                  <span className="text-[10px] text-gray-600 ml-1">
+                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Loading Indicator */}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-gray-800 border border-gray-700 rounded-2xl rounded-bl-none px-4 py-3 shadow-md flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce"></span>
+              </div>
+            </div>
+          )}
+          
+          <div ref={bottomRef} />
+        </div>
+      </main>
+
+      {/* 3. Input Area (Fixed Bottom) */}
+      <footer className="flex-none bg-[#0f172a] border-t border-gray-800 p-4">
+        <div className="max-w-3xl mx-auto">
+          <form onSubmit={handleSubmit} className="relative flex items-end gap-2 bg-gray-800/50 rounded-xl border border-gray-700 shadow-inner p-2 focus-within:ring-2 focus-within:ring-blue-600/50 focus-within:border-blue-500 transition-all">
+            <textarea
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={`Message ${APP_OPTIONS.find(o => o.id === selectedApp)?.label ?? selectedApp}...`}
+              className="w-full bg-transparent text-gray-100 placeholder-gray-500 text-sm px-3 py-2.5 max-h-32 min-h-[44px] focus:outline-none resize-none overflow-y-auto"
+              rows={1}
+              style={{ minHeight: '44px' }} // fallback
+            />
+            
+            <button
+              type="submit"
+              disabled={!inputValue.trim() || isLoading}
+              className="p-2 mb-0.5 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-900/20"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            </button>
+          </form>
+          <p className="text-center text-[10px] text-gray-500 mt-2">
+            LLM can make mistakes. Verify important information.
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}
