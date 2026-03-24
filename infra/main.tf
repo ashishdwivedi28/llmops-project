@@ -44,7 +44,13 @@ resource "google_project_service" "apis" {
     "cloudbuild.googleapis.com",
     "aiplatform.googleapis.com",
     "iamcredentials.googleapis.com",
-    "iam.googleapis.com"
+    "iam.googleapis.com",
+    "firestore.googleapis.com",
+    "bigquery.googleapis.com",
+    "pubsub.googleapis.com",
+    "cloudscheduler.googleapis.com",
+    "monitoring.googleapis.com",
+    "storage.googleapis.com"
   ])
   service            = each.key
   disable_on_destroy = false

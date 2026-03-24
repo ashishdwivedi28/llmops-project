@@ -29,7 +29,7 @@
     "top_k": 3,
     "rag_corpus_id": "",
     "evaluation_threshold": 4.0,
-    "description": "Document Q&A — always uses RAG pipeline"
+    "description": "Document Q&A always uses RAG pipeline"
   },
   "code_agent": {
     "pipeline": "agent",
@@ -40,6 +40,6 @@
     "system_prompt": "You are an expert coding assistant. Think step by step. Use available tools when needed. Always explain your reasoning before taking action.",
     "max_iterations": 5,
     "evaluation_threshold": 4.0,
-    "description": "Agentic coding assistant — always uses Agent pipeline"
+    "description": "Agentic coding assistant always uses Agent pipeline"
   }
 }

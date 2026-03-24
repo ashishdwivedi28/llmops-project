@@ -7,20 +7,20 @@ on:
       - "xyz/**"
       - ".github/workflows/backend-deploy.yml"
 
+permissions:
+  contents: read
+  id-token: write
+
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: us-central1
   SERVICE_NAME: llmops-backend
-  IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/llmops-repo/backend
-  # Service Account for the RUNNING application (created by Terraform)
+  IMAGE_URI: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/llmops-repo/llmops-backend
   RUNTIME_SA: llmops-backend-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
 
     steps:
       - name: Checkout
@@ -38,32 +38,31 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
-      - name: Build Docker image
+      - name: Build and Push Docker image
         working-directory: xyz
-        run: docker build -t $IMAGE:${{ github.sha }} -t $IMAGE:latest .
-
-      - name: Push Docker image
         run: |
-          docker push $IMAGE:${{ github.sha }}
-          docker push $IMAGE:latest
+          docker build -t $IMAGE_URI:${{ github.sha }} -t $IMAGE_URI:latest .
+          docker push $IMAGE_URI:${{ github.sha }}
+          docker push $IMAGE_URI:latest
 
       - name: Deploy to Cloud Run
-        # Uses the RUNTIME_SA for identity.
-        # Uses standard Vertex AI environment variables.
         run: |
           gcloud run deploy $SERVICE_NAME \
-            --image $IMAGE:${{ github.sha }} \
+            --image $IMAGE_URI:${{ github.sha }} \
             --region $REGION \
             --platform managed \
             --service-account $RUNTIME_SA \
             --allow-unauthenticated \
-            --set-env-vars=ENVIRONMENT=production \
-            --set-env-vars=GOOGLE_CLOUD_PROJECT=${{ secrets.GCP_PROJECT_ID }} \
-            --set-env-vars=VERTEXAI_LOCATION=$REGION \
+            --set-env-vars="GOOGLE_CLOUD_PROJECT=${{ secrets.GCP_PROJECT_ID }}" \
+            --set-env-vars="BIGQUERY_PROJECT=${{ secrets.GCP_PROJECT_ID }}" \
+            --set-env-vars="FIRESTORE_PROJECT=${{ secrets.GCP_PROJECT_ID }}" \
+            --set-env-vars="RAG_LOCATION=${REGION}" \
+            --set-env-vars="GCS_BUCKET_DOCS=${{ secrets.GCP_PROJECT_ID }}-llmops-docs" \
+            --set-env-vars="PIPELINE_ROOT_GCS=gs://${{ secrets.GCP_PROJECT_ID }}-llmops-pipeline-artifacts" \
             --memory=1Gi \
             --cpu=1 \
             --min-instances=0 \
-            --max-instances=10 \
+            --max-instances=5 \
             --port=8080
 
       - name: Show backend URL

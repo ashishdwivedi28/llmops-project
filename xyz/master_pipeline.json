@@ -1,0 +1,1124 @@
+{
+  "components": {
+    "comp-compare-models-and-promote": {
+      "executorLabel": "exec-compare-models-and-promote",
+      "inputDefinitions": {
+        "artifacts": {
+          "results_a_artifact": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          },
+          "results_b_artifact": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        },
+        "parameters": {
+          "app_id": {
+            "parameterType": "STRING"
+          },
+          "experiment_id": {
+            "parameterType": "STRING"
+          },
+          "google_api_key": {
+            "parameterType": "STRING"
+          },
+          "model_a_name": {
+            "parameterType": "STRING"
+          },
+          "model_b_name": {
+            "parameterType": "STRING"
+          },
+          "project_id": {
+            "parameterType": "STRING"
+          },
+          "promotion_margin": {
+            "parameterType": "NUMBER_DOUBLE"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "parameters": {
+          "Output": {
+            "parameterType": "STRING"
+          }
+        }
+      }
+    },
+    "comp-condition-1": {
+      "dag": {
+        "tasks": {
+          "ingest-document-to-rag": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-ingest-document-to-rag"
+            },
+            "inputs": {
+              "parameters": {
+                "app_id": {
+                  "componentInputParameter": "pipelinechannel--app_id"
+                },
+                "display_name": {
+                  "componentInputParameter": "pipelinechannel--document_display_name"
+                },
+                "gcs_uri": {
+                  "componentInputParameter": "pipelinechannel--gcs_document_uri"
+                },
+                "location": {
+                  "componentInputParameter": "pipelinechannel--rag_location"
+                },
+                "project_id": {
+                  "componentInputParameter": "pipelinechannel--project_id"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "ingest-document-to-rag"
+            }
+          }
+        }
+      },
+      "inputDefinitions": {
+        "parameters": {
+          "pipelinechannel--app_id": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--document_display_name": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--gcs_document_uri": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--project_id": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--rag_location": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--trigger_type": {
+            "parameterType": "STRING"
+          }
+        }
+      }
+    },
+    "comp-condition-2": {
+      "dag": {
+        "tasks": {
+          "fetch-logs-to-gcs": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-fetch-logs-to-gcs"
+            },
+            "inputs": {
+              "parameters": {
+                "app_id": {
+                  "componentInputParameter": "pipelinechannel--app_id"
+                },
+                "lookback_hours": {
+                  "componentInputParameter": "pipelinechannel--lookback_hours"
+                },
+                "project_id": {
+                  "componentInputParameter": "pipelinechannel--project_id"
+                },
+                "sample_size": {
+                  "componentInputParameter": "pipelinechannel--sample_size"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "fetch-logs-to-gcs"
+            }
+          },
+          "score-responses-with-judge": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-score-responses-with-judge"
+            },
+            "dependentTasks": [
+              "fetch-logs-to-gcs"
+            ],
+            "inputs": {
+              "artifacts": {
+                "logs_gcs_uri": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "output_gcs_uri",
+                    "producerTask": "fetch-logs-to-gcs"
+                  }
+                }
+              },
+              "parameters": {
+                "google_api_key": {
+                  "componentInputParameter": "pipelinechannel--google_api_key"
+                },
+                "judge_model": {
+                  "componentInputParameter": "pipelinechannel--judge_model"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "score-responses-with-judge"
+            }
+          },
+          "update-active-config": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-update-active-config"
+            },
+            "dependentTasks": [
+              "write-scores-to-bigquery"
+            ],
+            "inputs": {
+              "parameters": {
+                "app_id": {
+                  "componentInputParameter": "pipelinechannel--app_id"
+                },
+                "avg_score": {
+                  "taskOutputParameter": {
+                    "outputParameterKey": "Output",
+                    "producerTask": "write-scores-to-bigquery"
+                  }
+                },
+                "project_id": {
+                  "componentInputParameter": "pipelinechannel--project_id"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "update-active-config"
+            }
+          },
+          "write-scores-to-bigquery": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-write-scores-to-bigquery"
+            },
+            "dependentTasks": [
+              "score-responses-with-judge"
+            ],
+            "inputs": {
+              "artifacts": {
+                "scored_gcs_uri": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "scored_gcs_uri",
+                    "producerTask": "score-responses-with-judge"
+                  }
+                }
+              },
+              "parameters": {
+                "app_id": {
+                  "componentInputParameter": "pipelinechannel--app_id"
+                },
+                "eval_run_id": {
+                  "componentInputParameter": "pipelinechannel--eval_run_id"
+                },
+                "project_id": {
+                  "componentInputParameter": "pipelinechannel--project_id"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "write-scores-to-bigquery"
+            }
+          }
+        }
+      },
+      "inputDefinitions": {
+        "parameters": {
+          "pipelinechannel--app_id": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--eval_run_id": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--google_api_key": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--judge_model": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--lookback_hours": {
+            "parameterType": "NUMBER_INTEGER"
+          },
+          "pipelinechannel--project_id": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--sample_size": {
+            "parameterType": "NUMBER_INTEGER"
+          },
+          "pipelinechannel--trigger_type": {
+            "parameterType": "STRING"
+          }
+        }
+      }
+    },
+    "comp-condition-3": {
+      "dag": {
+        "tasks": {
+          "compare-models-and-promote": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-compare-models-and-promote"
+            },
+            "dependentTasks": [
+              "run-model-inference",
+              "run-model-inference-2"
+            ],
+            "inputs": {
+              "artifacts": {
+                "results_a_artifact": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "results_artifact",
+                    "producerTask": "run-model-inference"
+                  }
+                },
+                "results_b_artifact": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "results_artifact",
+                    "producerTask": "run-model-inference-2"
+                  }
+                }
+              },
+              "parameters": {
+                "app_id": {
+                  "componentInputParameter": "pipelinechannel--app_id"
+                },
+                "experiment_id": {
+                  "componentInputParameter": "pipelinechannel--experiment_id"
+                },
+                "google_api_key": {
+                  "componentInputParameter": "pipelinechannel--google_api_key"
+                },
+                "model_a_name": {
+                  "componentInputParameter": "pipelinechannel--model_a_name"
+                },
+                "model_b_name": {
+                  "componentInputParameter": "pipelinechannel--model_b_name"
+                },
+                "project_id": {
+                  "componentInputParameter": "pipelinechannel--project_id"
+                },
+                "promotion_margin": {
+                  "componentInputParameter": "pipelinechannel--promotion_margin"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "compare-models-and-promote"
+            }
+          },
+          "load-test-set-from-gcs": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-load-test-set-from-gcs"
+            },
+            "inputs": {
+              "parameters": {
+                "gcs_test_file": {
+                  "componentInputParameter": "pipelinechannel--gcs_test_file"
+                },
+                "project_id": {
+                  "componentInputParameter": "pipelinechannel--project_id"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "load-test-set-from-gcs"
+            }
+          },
+          "run-model-inference": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-run-model-inference"
+            },
+            "dependentTasks": [
+              "load-test-set-from-gcs"
+            ],
+            "inputs": {
+              "artifacts": {
+                "test_data_artifact": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "test_data_artifact",
+                    "producerTask": "load-test-set-from-gcs"
+                  }
+                }
+              },
+              "parameters": {
+                "app_id": {
+                  "componentInputParameter": "pipelinechannel--app_id"
+                },
+                "google_api_key": {
+                  "componentInputParameter": "pipelinechannel--google_api_key"
+                },
+                "model_name": {
+                  "componentInputParameter": "pipelinechannel--model_a_name"
+                },
+                "project_id": {
+                  "componentInputParameter": "pipelinechannel--project_id"
+                },
+                "system_prompt": {
+                  "componentInputParameter": "pipelinechannel--experiment_system_prompt"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "run-model-inference"
+            }
+          },
+          "run-model-inference-2": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-run-model-inference-2"
+            },
+            "dependentTasks": [
+              "load-test-set-from-gcs"
+            ],
+            "inputs": {
+              "artifacts": {
+                "test_data_artifact": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "test_data_artifact",
+                    "producerTask": "load-test-set-from-gcs"
+                  }
+                }
+              },
+              "parameters": {
+                "app_id": {
+                  "componentInputParameter": "pipelinechannel--app_id"
+                },
+                "google_api_key": {
+                  "componentInputParameter": "pipelinechannel--google_api_key"
+                },
+                "model_name": {
+                  "componentInputParameter": "pipelinechannel--model_b_name"
+                },
+                "project_id": {
+                  "componentInputParameter": "pipelinechannel--project_id"
+                },
+                "system_prompt": {
+                  "componentInputParameter": "pipelinechannel--experiment_system_prompt"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "run-model-inference-2"
+            }
+          }
+        }
+      },
+      "inputDefinitions": {
+        "parameters": {
+          "pipelinechannel--app_id": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--experiment_id": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--experiment_system_prompt": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--gcs_test_file": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--google_api_key": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--model_a_name": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--model_b_name": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--project_id": {
+            "parameterType": "STRING"
+          },
+          "pipelinechannel--promotion_margin": {
+            "parameterType": "NUMBER_DOUBLE"
+          },
+          "pipelinechannel--trigger_type": {
+            "parameterType": "STRING"
+          }
+        }
+      }
+    },
+    "comp-fetch-logs-to-gcs": {
+      "executorLabel": "exec-fetch-logs-to-gcs",
+      "inputDefinitions": {
+        "parameters": {
+          "app_id": {
+            "parameterType": "STRING"
+          },
+          "lookback_hours": {
+            "parameterType": "NUMBER_INTEGER"
+          },
+          "project_id": {
+            "parameterType": "STRING"
+          },
+          "sample_size": {
+            "parameterType": "NUMBER_INTEGER"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "artifacts": {
+          "output_gcs_uri": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        }
+      }
+    },
+    "comp-ingest-document-to-rag": {
+      "executorLabel": "exec-ingest-document-to-rag",
+      "inputDefinitions": {
+        "parameters": {
+          "app_id": {
+            "parameterType": "STRING"
+          },
+          "display_name": {
+            "parameterType": "STRING"
+          },
+          "gcs_uri": {
+            "parameterType": "STRING"
+          },
+          "location": {
+            "parameterType": "STRING"
+          },
+          "project_id": {
+            "parameterType": "STRING"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "parameters": {
+          "Output": {
+            "parameterType": "STRING"
+          }
+        }
+      }
+    },
+    "comp-load-test-set-from-gcs": {
+      "executorLabel": "exec-load-test-set-from-gcs",
+      "inputDefinitions": {
+        "parameters": {
+          "gcs_test_file": {
+            "parameterType": "STRING"
+          },
+          "project_id": {
+            "parameterType": "STRING"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "artifacts": {
+          "test_data_artifact": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        },
+        "parameters": {
+          "Output": {
+            "parameterType": "NUMBER_INTEGER"
+          }
+        }
+      }
+    },
+    "comp-run-model-inference": {
+      "executorLabel": "exec-run-model-inference",
+      "inputDefinitions": {
+        "artifacts": {
+          "test_data_artifact": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        },
+        "parameters": {
+          "app_id": {
+            "parameterType": "STRING"
+          },
+          "google_api_key": {
+            "parameterType": "STRING"
+          },
+          "model_name": {
+            "parameterType": "STRING"
+          },
+          "project_id": {
+            "parameterType": "STRING"
+          },
+          "system_prompt": {
+            "parameterType": "STRING"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "artifacts": {
+          "results_artifact": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        }
+      }
+    },
+    "comp-run-model-inference-2": {
+      "executorLabel": "exec-run-model-inference-2",
+      "inputDefinitions": {
+        "artifacts": {
+          "test_data_artifact": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        },
+        "parameters": {
+          "app_id": {
+            "parameterType": "STRING"
+          },
+          "google_api_key": {
+            "parameterType": "STRING"
+          },
+          "model_name": {
+            "parameterType": "STRING"
+          },
+          "project_id": {
+            "parameterType": "STRING"
+          },
+          "system_prompt": {
+            "parameterType": "STRING"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "artifacts": {
+          "results_artifact": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        }
+      }
+    },
+    "comp-score-responses-with-judge": {
+      "executorLabel": "exec-score-responses-with-judge",
+      "inputDefinitions": {
+        "artifacts": {
+          "logs_gcs_uri": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        },
+        "parameters": {
+          "google_api_key": {
+            "parameterType": "STRING"
+          },
+          "judge_model": {
+            "parameterType": "STRING"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "artifacts": {
+          "scored_gcs_uri": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        }
+      }
+    },
+    "comp-update-active-config": {
+      "executorLabel": "exec-update-active-config",
+      "inputDefinitions": {
+        "parameters": {
+          "app_id": {
+            "parameterType": "STRING"
+          },
+          "avg_score": {
+            "parameterType": "NUMBER_DOUBLE"
+          },
+          "project_id": {
+            "parameterType": "STRING"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "parameters": {
+          "Output": {
+            "parameterType": "STRING"
+          }
+        }
+      }
+    },
+    "comp-write-scores-to-bigquery": {
+      "executorLabel": "exec-write-scores-to-bigquery",
+      "inputDefinitions": {
+        "artifacts": {
+          "scored_gcs_uri": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        },
+        "parameters": {
+          "app_id": {
+            "parameterType": "STRING"
+          },
+          "eval_run_id": {
+            "parameterType": "STRING"
+          },
+          "project_id": {
+            "parameterType": "STRING"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "parameters": {
+          "Output": {
+            "parameterType": "NUMBER_DOUBLE"
+          }
+        }
+      }
+    }
+  },
+  "deploymentSpec": {
+    "executors": {
+      "exec-compare-models-and-promote": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "compare_models_and_promote"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&  python3 -m pip install --quiet --no-warn-script-location 'google-generativeai==0.8.3' 'google-cloud-storage==2.18.0' 'google-cloud-bigquery==3.25.0' 'google-cloud-firestore==2.16.0' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef compare_models_and_promote(\n    results_a_artifact: dsl.Input[dsl.Artifact],\n    results_b_artifact: dsl.Input[dsl.Artifact],\n    model_a_name: str,\n    model_b_name: str,\n    app_id: str,\n    experiment_id: str,\n    project_id: str,\n    google_api_key: str,\n    promotion_margin: float,\n) -> str:\n    \"\"\"Judge both model result sets, write to BigQuery, promote winner.\"\"\"\n    import json, time\n    from datetime import datetime, timezone\n    import google.generativeai as genai\n    from google.cloud import storage, bigquery, firestore\n\n    gcs = storage.Client(project=project_id)\n\n    def read_artifact(artifact):\n        uri = artifact.uri\n        bucket = uri.replace(\"gs://\", \"\").split(\"/\")[0]\n        blob = \"/\".join(uri.replace(\"gs://\", \"\").split(\"/\")[1:])\n        return json.loads(gcs.bucket(bucket).blob(blob).download_as_text())\n\n    results_a = read_artifact(results_a_artifact)\n    results_b = read_artifact(results_b_artifact)\n\n    genai.configure(api_key=google_api_key)\n    judge = genai.GenerativeModel(\"gemini-2.0-pro-exp\")\n\n    scores_a, scores_b = [], []\n    for ra, rb in zip(results_a, results_b):\n        try:\n            prompt = f\"\"\"Compare two AI responses. Return ONLY JSON: {{\"score_a\": 1-5, \"score_b\": 1-5}}\n\nQuestion: {ra['question'][:300]}\nResponse A ({model_a_name}): {ra['response'][:500]}\nResponse B ({model_b_name}): {rb['response'][:500]}\"\"\"\n            resp = judge.generate_content(prompt)\n            raw = resp.text.strip().strip(\"```json\").strip(\"```\").strip()\n            d = json.loads(raw)\n            scores_a.append(d.get(\"score_a\", 3))\n            scores_b.append(d.get(\"score_b\", 3))\n            time.sleep(0.3)\n        except Exception as e:\n            print(f\"Comparison scoring error: {e}\")\n            scores_a.append(3)\n            scores_b.append(3)\n\n    avg_a = round(sum(scores_a) / len(scores_a), 2) if scores_a else 3.0\n    avg_b = round(sum(scores_b) / len(scores_b), 2) if scores_b else 3.0\n    margin = abs(avg_a - avg_b)\n    winner = model_a_name if avg_a > avg_b else (model_b_name if avg_b > avg_a else \"tie\")\n\n    now = datetime.now(timezone.utc)\n\n    # Write to BigQuery\n    bq = bigquery.Client(project=project_id)\n    bq.insert_rows_json(f\"{project_id}.llmops.experiments\", [{\n        \"timestamp\": now.isoformat(),\n        \"experiment_id\": experiment_id,\n        \"app_id\": app_id,\n        \"model_a\": model_a_name,\n        \"model_b\": model_b_name,\n        \"avg_score_a\": avg_a,\n        \"avg_score_b\": avg_b,\n        \"winner\": winner,\n        \"promoted\": False,\n        \"sample_size\": len(scores_a),\n    }])\n\n    # Promote winner if margin is significant\n    promoted = False\n    if winner != \"tie\" and margin >= promotion_margin:\n        db = firestore.Client(project=project_id)\n        db.collection(\"configs\").document(app_id).update({\n            \"active_model\": winner,\n            \"updated_at\": now,\n        })\n        promoted = True\n        print(f\"Promoted model {winner} for {app_id} with margin {margin:.2f}\")\n\n    result = (\n        f\"Experiment {experiment_id} complete. \"\n        f\"Winner: {winner} (A={avg_a}, B={avg_b}, margin={margin:.2f}). \"\n        f\"Promoted: {promoted}.\"\n    )\n    print(result)\n    return result\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      },
+      "exec-fetch-logs-to-gcs": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "fetch_logs_to_gcs"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&  python3 -m pip install --quiet --no-warn-script-location 'google-cloud-bigquery==3.25.0' 'google-cloud-storage==2.18.0' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef fetch_logs_to_gcs(\n    project_id: str,\n    app_id: str,\n    lookback_hours: int,\n    sample_size: int,\n    output_gcs_uri: dsl.Output[dsl.Artifact],\n) -> None:\n    \"\"\"Fetch BigQuery logs and write to GCS as JSON.\n\n    Uses GCS artifact output to handle large log sets without KFP parameter limits.\n    \"\"\"\n    import json\n    from google.cloud import bigquery, storage\n\n    client = bigquery.Client(project=project_id)\n    query = f\"\"\"\n        SELECT\n            CAST(timestamp AS STRING) as timestamp,\n            app_id, user_input, output,\n            pipeline_executed, prompt_version, model, latency_ms\n        FROM `{project_id}.llmops.requests`\n        WHERE app_id = '{app_id}'\n          AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {lookback_hours} HOUR)\n          AND output IS NOT NULL\n          AND CHAR_LENGTH(output) > 10\n        ORDER BY RAND()\n        LIMIT {sample_size}\n    \"\"\"\n\n    rows = [dict(r) for r in client.query(query).result()]\n    print(f\"Fetched {len(rows)} log rows for {app_id}\")\n\n    # Write to GCS via artifact\n    gcs_path = output_gcs_uri.uri\n    bucket_name = gcs_path.replace(\"gs://\", \"\").split(\"/\")[0]\n    blob_name = \"/\".join(gcs_path.replace(\"gs://\", \"\").split(\"/\")[1:])\n\n    gcs_client = storage.Client(project=project_id)\n    bucket = gcs_client.bucket(bucket_name)\n    blob = bucket.blob(blob_name)\n    blob.upload_from_string(json.dumps(rows), content_type=\"application/json\")\n    print(f\"Logs written to {gcs_path}\")\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      },
+      "exec-ingest-document-to-rag": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "ingest_document_to_rag"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&  python3 -m pip install --quiet --no-warn-script-location 'google-cloud-aiplatform[all]>=1.60.0' 'google-cloud-firestore==2.16.0' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef ingest_document_to_rag(\n    gcs_uri: str,\n    app_id: str,\n    project_id: str,\n    location: str,\n    display_name: str,\n) -> str:\n    \"\"\"Ingest a GCS document into the Vertex AI RAG Engine corpus for app_id.\"\"\"\n    import logging\n    from google.cloud import firestore\n\n    logger = logging.getLogger(__name__)\n    logger.setLevel(logging.INFO)\n\n    # Get corpus_id from Firestore\n    db = firestore.Client(project=project_id)\n    doc = db.collection(\"configs\").document(app_id).get()\n    if not doc.exists:\n        raise ValueError(f\"No Firestore config found for app_id: {app_id}\")\n\n    config = doc.to_dict()\n    corpus_id = config.get(\"rag_corpus_id\", \"\")\n    if not corpus_id:\n        raise ValueError(\n            f\"rag_corpus_id not set in Firestore for {app_id}. \"\n            \"Run scripts/setup_rag_corpus.py first.\"\n        )\n\n    # Use Vertex AI RAG Engine\n    import vertexai\n    from vertexai.preview import rag\n\n    vertexai.init(project=project_id, location=location)\n\n    logger.info(f\"Ingesting {gcs_uri} into corpus {corpus_id}\")\n\n    rag.upload_file(\n        corpus_name=corpus_id,\n        path=gcs_uri,\n        display_name=display_name,\n        description=f\"Auto-ingested from {gcs_uri}\",\n    )\n\n    # Log ingestion to Firestore\n    from datetime import datetime, timezone\n    db.collection(\"ingestion_log\").add({\n        \"app_id\": app_id,\n        \"gcs_uri\": gcs_uri,\n        \"corpus_id\": corpus_id,\n        \"status\": \"success\",\n        \"timestamp\": datetime.now(timezone.utc),\n    })\n\n    logger.info(f\"Ingestion complete: {gcs_uri}\")\n    return corpus_id\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      },
+      "exec-load-test-set-from-gcs": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "load_test_set_from_gcs"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&  python3 -m pip install --quiet --no-warn-script-location 'google-cloud-storage==2.18.0' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef load_test_set_from_gcs(\n    gcs_test_file: str,\n    project_id: str,\n    test_data_artifact: dsl.Output[dsl.Artifact],\n) -> int:\n    \"\"\"Load test questions from GCS JSON file. Returns number of questions.\"\"\"\n    import json\n    from google.cloud import storage\n\n    path = gcs_test_file.replace(\"gs://\", \"\")\n    bucket_name, blob_name = path.split(\"/\", 1)\n\n    client = storage.Client(project=project_id)\n    content = client.bucket(bucket_name).blob(blob_name).download_as_text()\n    questions = json.loads(content)\n\n    # Write to artifact URI\n    out_bucket = test_data_artifact.uri.replace(\"gs://\", \"\").split(\"/\")[0]\n    out_blob = \"/\".join(test_data_artifact.uri.replace(\"gs://\", \"\").split(\"/\")[1:])\n    client.bucket(out_bucket).blob(out_blob).upload_from_string(\n        content, content_type=\"application/json\"\n    )\n    print(f\"Loaded {len(questions)} test questions from {gcs_test_file}\")\n    return len(questions)\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      },
+      "exec-run-model-inference": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "run_model_inference"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&  python3 -m pip install --quiet --no-warn-script-location 'google-generativeai==0.8.3' 'google-cloud-storage==2.18.0' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef run_model_inference(\n    test_data_artifact: dsl.Input[dsl.Artifact],\n    results_artifact: dsl.Output[dsl.Artifact],\n    model_name: str,\n    app_id: str,\n    project_id: str,\n    google_api_key: str,\n    system_prompt: str,\n) -> None:\n    \"\"\"Run a model directly (not via serving API) on the test set.\n\n    This calls the LLM API directly so we can test different models\n    independently of what is currently active in the serving config.\n    \"\"\"\n    import json\n    import time\n    import google.generativeai as genai\n    from google.cloud import storage\n\n    # Read test data\n    in_uri = test_data_artifact.uri\n    in_bucket = in_uri.replace(\"gs://\", \"\").split(\"/\")[0]\n    in_blob = \"/\".join(in_uri.replace(\"gs://\", \"\").split(\"/\")[1:])\n    gcs = storage.Client(project=project_id)\n    questions = json.loads(gcs.bucket(in_bucket).blob(in_blob).download_as_text())\n\n    genai.configure(api_key=google_api_key)\n\n    results = []\n    for item in questions[:30]:\n        question = item.get(\"question\", item.get(\"user_input\", str(item)))\n        try:\n            model_obj = genai.GenerativeModel(\n                model_name,\n                system_instruction=system_prompt,\n            )\n            resp = model_obj.generate_content(question)\n            results.append({\n                \"question\": question,\n                \"expected\": item.get(\"expected\", \"\"),\n                \"model\": model_name,\n                \"response\": resp.text,\n            })\n            time.sleep(0.2)\n        except Exception as e:\n            results.append({\n                \"question\": question,\n                \"model\": model_name,\n                \"response\": f\"ERROR: {e}\",\n            })\n\n    # Write results to artifact\n    out_uri = results_artifact.uri\n    out_bucket = out_uri.replace(\"gs://\", \"\").split(\"/\")[0]\n    out_blob = \"/\".join(out_uri.replace(\"gs://\", \"\").split(\"/\")[1:])\n    gcs.bucket(out_bucket).blob(out_blob).upload_from_string(\n        json.dumps(results), content_type=\"application/json\"\n    )\n    print(f\"Model {model_name}: ran {len(results)} inferences.\")\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      },
+      "exec-run-model-inference-2": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "run_model_inference"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&  python3 -m pip install --quiet --no-warn-script-location 'google-generativeai==0.8.3' 'google-cloud-storage==2.18.0' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef run_model_inference(\n    test_data_artifact: dsl.Input[dsl.Artifact],\n    results_artifact: dsl.Output[dsl.Artifact],\n    model_name: str,\n    app_id: str,\n    project_id: str,\n    google_api_key: str,\n    system_prompt: str,\n) -> None:\n    \"\"\"Run a model directly (not via serving API) on the test set.\n\n    This calls the LLM API directly so we can test different models\n    independently of what is currently active in the serving config.\n    \"\"\"\n    import json\n    import time\n    import google.generativeai as genai\n    from google.cloud import storage\n\n    # Read test data\n    in_uri = test_data_artifact.uri\n    in_bucket = in_uri.replace(\"gs://\", \"\").split(\"/\")[0]\n    in_blob = \"/\".join(in_uri.replace(\"gs://\", \"\").split(\"/\")[1:])\n    gcs = storage.Client(project=project_id)\n    questions = json.loads(gcs.bucket(in_bucket).blob(in_blob).download_as_text())\n\n    genai.configure(api_key=google_api_key)\n\n    results = []\n    for item in questions[:30]:\n        question = item.get(\"question\", item.get(\"user_input\", str(item)))\n        try:\n            model_obj = genai.GenerativeModel(\n                model_name,\n                system_instruction=system_prompt,\n            )\n            resp = model_obj.generate_content(question)\n            results.append({\n                \"question\": question,\n                \"expected\": item.get(\"expected\", \"\"),\n                \"model\": model_name,\n                \"response\": resp.text,\n            })\n            time.sleep(0.2)\n        except Exception as e:\n            results.append({\n                \"question\": question,\n                \"model\": model_name,\n                \"response\": f\"ERROR: {e}\",\n            })\n\n    # Write results to artifact\n    out_uri = results_artifact.uri\n    out_bucket = out_uri.replace(\"gs://\", \"\").split(\"/\")[0]\n    out_blob = \"/\".join(out_uri.replace(\"gs://\", \"\").split(\"/\")[1:])\n    gcs.bucket(out_bucket).blob(out_blob).upload_from_string(\n        json.dumps(results), content_type=\"application/json\"\n    )\n    print(f\"Model {model_name}: ran {len(results)} inferences.\")\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      },
+      "exec-score-responses-with-judge": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "score_responses_with_judge"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&  python3 -m pip install --quiet --no-warn-script-location 'google-generativeai==0.8.3' 'google-cloud-storage==2.18.0' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef score_responses_with_judge(\n    logs_gcs_uri: dsl.Input[dsl.Artifact],\n    scored_gcs_uri: dsl.Output[dsl.Artifact],\n    judge_model: str,\n    google_api_key: str,\n) -> None:\n    \"\"\"LLM-as-judge: score each response. Read from GCS, write scored JSON to GCS.\"\"\"\n    import json\n    import time\n    import google.generativeai as genai\n    from google.cloud import storage\n\n    # Read logs from GCS\n    gcs_in = logs_gcs_uri.uri\n    bucket_in = gcs_in.replace(\"gs://\", \"\").split(\"/\")[0]\n    blob_in = \"/\".join(gcs_in.replace(\"gs://\", \"\").split(\"/\")[1:])\n    gcs_client = storage.Client()\n    logs = json.loads(gcs_client.bucket(bucket_in).blob(blob_in).download_as_text())\n\n    if not logs:\n        # Write empty result\n        gcs_out = scored_gcs_uri.uri\n        bucket_out = gcs_out.replace(\"gs://\", \"\").split(\"/\")[0]\n        blob_out = \"/\".join(gcs_out.replace(\"gs://\", \"\").split(\"/\")[1:])\n        gcs_client.bucket(bucket_out).blob(blob_out).upload_from_string(\n            json.dumps([]), content_type=\"application/json\"\n        )\n        return\n\n    genai.configure(api_key=google_api_key)\n    model = genai.GenerativeModel(judge_model)\n\n    JUDGE_PROMPT = \"\"\"You are an expert AI quality evaluator. Evaluate this response.\nReturn ONLY valid JSON, nothing else. No preamble, no markdown fences.\n\nUser Question: {user_input}\nAI Response: {output}\n\nScore each from 1 (worst) to 5 (best):\n- correctness: Is the response factually accurate?\n- relevance: Does it directly address what the user asked?\n- completeness: Is the answer complete?\n\nReturn exactly: {{\"correctness\": N, \"relevance\": N, \"completeness\": N, \"explanation\": \"...\"}}\"\"\"\n\n    scored = []\n    for row in logs:\n        try:\n            prompt = JUDGE_PROMPT.format(\n                user_input=row.get(\"user_input\", \"\")[:500],\n                output=row.get(\"output\", \"\")[:1000],\n            )\n            resp = model.generate_content(prompt)\n            raw = resp.text.strip()\n            # Strip any accidental markdown fences\n            if raw.startswith(\"```\"):\n                raw = raw.split(\"```\")[1]\n                if raw.startswith(\"json\"):\n                    raw = raw[4:]\n            scores = json.loads(raw.strip())\n            avg = round((\n                scores.get(\"correctness\", 3) +\n                scores.get(\"relevance\", 3) +\n                scores.get(\"completeness\", 3)\n            ) / 3, 2)\n            scored.append({\n                **row,\n                \"correctness_score\": scores.get(\"correctness\", 3),\n                \"relevance_score\": scores.get(\"relevance\", 3),\n                \"completeness_score\": scores.get(\"completeness\", 3),\n                \"avg_score\": avg,\n                \"judge_model\": judge_model,\n                \"judge_explanation\": scores.get(\"explanation\", \"\")[:500],\n            })\n            time.sleep(0.3)\n        except Exception as e:\n            print(f\"Scoring failed for row: {e}\")\n            scored.append({**row, \"avg_score\": 3.0, \"judge_model\": judge_model,\n                           \"correctness_score\": 3, \"relevance_score\": 3,\n                           \"completeness_score\": 3, \"judge_explanation\": f\"parse_error: {e}\"})\n\n    # Write scored results to GCS\n    gcs_out = scored_gcs_uri.uri\n    bucket_out = gcs_out.replace(\"gs://\", \"\").split(\"/\")[0]\n    blob_out = \"/\".join(gcs_out.replace(\"gs://\", \"\").split(\"/\")[1:])\n    gcs_client.bucket(bucket_out).blob(blob_out).upload_from_string(\n        json.dumps(scored), content_type=\"application/json\"\n    )\n    print(f\"Scored {len(scored)} responses. Written to {gcs_out}\")\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      },
+      "exec-update-active-config": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "update_active_config"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&  python3 -m pip install --quiet --no-warn-script-location 'google-cloud-firestore==2.16.0' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef update_active_config(\n    app_id: str,\n    avg_score: float,\n    project_id: str,\n) -> str:\n    \"\"\"Promote best candidate prompt if avg_score < threshold. Returns action taken.\"\"\"\n    from google.cloud import firestore\n    from datetime import datetime, timezone\n\n    db = firestore.Client(project=project_id)\n    config_ref = db.collection(\"configs\").document(app_id)\n    config = config_ref.get().to_dict() or {}\n\n    threshold = float(config.get(\"evaluation_threshold\", 4.0))\n    current_version = config.get(\"active_prompt_version\", \"v1\")\n\n    if avg_score >= threshold:\n        msg = f\"Score {avg_score:.2f} >= threshold {threshold}. No change needed.\"\n        print(msg)\n        return msg\n\n    print(f\"Score {avg_score:.2f} < threshold {threshold}. Searching for better prompt...\")\n\n    candidates = (config_ref.collection(\"prompts\")\n                  .where(\"status\", \"==\", \"candidate\")\n                  .stream())\n\n    best_version = None\n    best_score = avg_score\n\n    for p in candidates:\n        pd = p.to_dict()\n        candidate_score = float(pd.get(\"score\", 0))\n        if candidate_score > best_score:\n            best_score = candidate_score\n            best_version = p.id\n\n    if best_version:\n        now = datetime.now(timezone.utc)\n        config_ref.update({\"active_prompt_version\": best_version, \"updated_at\": now})\n        config_ref.collection(\"prompts\").document(current_version).update({\"status\": \"retired\"})\n        config_ref.collection(\"prompts\").document(best_version).update({\"status\": \"active\"})\n        msg = f\"Promoted prompt {best_version} (score {best_score:.2f}). Retired {current_version}.\"\n        print(msg)\n        return msg\n\n    msg = f\"No candidate found with score > {avg_score:.2f}. Manual review needed for {app_id}.\"\n    print(msg)\n    return msg\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      },
+      "exec-write-scores-to-bigquery": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "write_scores_to_bigquery"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&  python3 -m pip install --quiet --no-warn-script-location 'google-cloud-bigquery==3.25.0' 'google-cloud-storage==2.18.0' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef write_scores_to_bigquery(\n    scored_gcs_uri: dsl.Input[dsl.Artifact],\n    project_id: str,\n    eval_run_id: str,\n    app_id: str,\n) -> float:\n    \"\"\"Read scored rows from GCS and write to BigQuery evaluation_results. Returns avg score.\"\"\"\n    import json\n    from datetime import datetime, timezone\n    from google.cloud import bigquery, storage\n\n    # Read from GCS artifact\n    gcs_path = scored_gcs_uri.uri\n    bucket_name = gcs_path.replace(\"gs://\", \"\").split(\"/\")[0]\n    blob_name = \"/\".join(gcs_path.replace(\"gs://\", \"\").split(\"/\")[1:])\n\n    gcs_client = storage.Client(project=project_id)\n    content = gcs_client.bucket(bucket_name).blob(blob_name).download_as_text()\n    scored = json.loads(content)\n\n    if not scored:\n        print(\"No scored rows to write.\")\n        return 0.0\n\n    bq = bigquery.Client(project=project_id)\n    table = f\"{project_id}.llmops.evaluation_results\"\n    now = datetime.now(timezone.utc).isoformat()\n\n    rows = [{\n        \"timestamp\": now,\n        \"eval_run_id\": eval_run_id,\n        \"app_id\": app_id,\n        \"request_timestamp\": r.get(\"timestamp\", \"\"),\n        \"user_input\": r.get(\"user_input\", \"\")[:2000],\n        \"output\": r.get(\"output\", \"\")[:4000],\n        \"pipeline_executed\": r.get(\"pipeline_executed\", \"\"),\n        \"prompt_version\": r.get(\"prompt_version\", \"\"),\n        \"model\": r.get(\"model\", \"\"),\n        \"correctness_score\": r.get(\"correctness_score\"),\n        \"relevance_score\": r.get(\"relevance_score\"),\n        \"completeness_score\": r.get(\"completeness_score\"),\n        \"avg_score\": r.get(\"avg_score\"),\n        \"judge_model\": r.get(\"judge_model\", \"\"),\n        \"judge_explanation\": r.get(\"judge_explanation\", \"\")[:1000],\n    } for r in scored]\n\n    errors = bq.insert_rows_json(table, rows)\n    if errors:\n        print(f\"BigQuery insert errors: {errors}\")\n\n    avg = round(sum(r.get(\"avg_score\", 0) for r in scored) / len(scored), 2)\n    print(f\"Wrote {len(rows)} eval rows. Average score: {avg}\")\n    return avg\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      }
+    }
+  },
+  "pipelineInfo": {
+    "description": "Central controller for all LLMOps automation. Controls RAG ingestion, evaluation, experiments, and config updates. trigger_type determines which branches run.",
+    "name": "llmops-master-pipeline"
+  },
+  "root": {
+    "dag": {
+      "tasks": {
+        "condition-1": {
+          "componentRef": {
+            "name": "comp-condition-1"
+          },
+          "inputs": {
+            "parameters": {
+              "pipelinechannel--app_id": {
+                "componentInputParameter": "app_id"
+              },
+              "pipelinechannel--document_display_name": {
+                "componentInputParameter": "document_display_name"
+              },
+              "pipelinechannel--gcs_document_uri": {
+                "componentInputParameter": "gcs_document_uri"
+              },
+              "pipelinechannel--project_id": {
+                "componentInputParameter": "project_id"
+              },
+              "pipelinechannel--rag_location": {
+                "componentInputParameter": "rag_location"
+              },
+              "pipelinechannel--trigger_type": {
+                "componentInputParameter": "trigger_type"
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "rag-ingestion-branch"
+          },
+          "triggerPolicy": {
+            "condition": "inputs.parameter_values['pipelinechannel--trigger_type'] == 'rag_ingestion'"
+          }
+        },
+        "condition-2": {
+          "componentRef": {
+            "name": "comp-condition-2"
+          },
+          "inputs": {
+            "parameters": {
+              "pipelinechannel--app_id": {
+                "componentInputParameter": "app_id"
+              },
+              "pipelinechannel--eval_run_id": {
+                "componentInputParameter": "eval_run_id"
+              },
+              "pipelinechannel--google_api_key": {
+                "componentInputParameter": "google_api_key"
+              },
+              "pipelinechannel--judge_model": {
+                "componentInputParameter": "judge_model"
+              },
+              "pipelinechannel--lookback_hours": {
+                "componentInputParameter": "lookback_hours"
+              },
+              "pipelinechannel--project_id": {
+                "componentInputParameter": "project_id"
+              },
+              "pipelinechannel--sample_size": {
+                "componentInputParameter": "sample_size"
+              },
+              "pipelinechannel--trigger_type": {
+                "componentInputParameter": "trigger_type"
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "evaluation-branch"
+          },
+          "triggerPolicy": {
+            "condition": "inputs.parameter_values['pipelinechannel--trigger_type'] == 'evaluation'"
+          }
+        },
+        "condition-3": {
+          "componentRef": {
+            "name": "comp-condition-3"
+          },
+          "inputs": {
+            "parameters": {
+              "pipelinechannel--app_id": {
+                "componentInputParameter": "app_id"
+              },
+              "pipelinechannel--experiment_id": {
+                "componentInputParameter": "experiment_id"
+              },
+              "pipelinechannel--experiment_system_prompt": {
+                "componentInputParameter": "experiment_system_prompt"
+              },
+              "pipelinechannel--gcs_test_file": {
+                "componentInputParameter": "gcs_test_file"
+              },
+              "pipelinechannel--google_api_key": {
+                "componentInputParameter": "google_api_key"
+              },
+              "pipelinechannel--model_a_name": {
+                "componentInputParameter": "model_a_name"
+              },
+              "pipelinechannel--model_b_name": {
+                "componentInputParameter": "model_b_name"
+              },
+              "pipelinechannel--project_id": {
+                "componentInputParameter": "project_id"
+              },
+              "pipelinechannel--promotion_margin": {
+                "componentInputParameter": "promotion_margin"
+              },
+              "pipelinechannel--trigger_type": {
+                "componentInputParameter": "trigger_type"
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "experiment-branch"
+          },
+          "triggerPolicy": {
+            "condition": "inputs.parameter_values['pipelinechannel--trigger_type'] == 'experiment'"
+          }
+        }
+      }
+    },
+    "inputDefinitions": {
+      "parameters": {
+        "app_id": {
+          "defaultValue": "default_llm",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "document_display_name": {
+          "defaultValue": "uploaded_document",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "eval_run_id": {
+          "defaultValue": "eval_auto",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "experiment_id": {
+          "defaultValue": "exp_001",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "experiment_system_prompt": {
+          "defaultValue": "You are a helpful assistant.",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "gcs_document_uri": {
+          "defaultValue": "",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "gcs_test_file": {
+          "defaultValue": "",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "google_api_key": {
+          "defaultValue": "",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "judge_model": {
+          "defaultValue": "gemini-2.0-pro-exp",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "lookback_hours": {
+          "defaultValue": 24.0,
+          "isOptional": true,
+          "parameterType": "NUMBER_INTEGER"
+        },
+        "model_a_name": {
+          "defaultValue": "gemini-2.0-flash",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "model_b_name": {
+          "defaultValue": "gemini-2.0-pro-exp",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "pipeline_root": {
+          "defaultValue": "",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "project_id": {
+          "defaultValue": "project-3e17312f-26d8-4511-821",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "promotion_margin": {
+          "defaultValue": 0.5,
+          "isOptional": true,
+          "parameterType": "NUMBER_DOUBLE"
+        },
+        "rag_location": {
+          "defaultValue": "us-central1",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "sample_size": {
+          "defaultValue": 50.0,
+          "isOptional": true,
+          "parameterType": "NUMBER_INTEGER"
+        },
+        "trigger_type": {
+          "defaultValue": "evaluation",
+          "isOptional": true,
+          "parameterType": "STRING"
+        }
+      }
+    }
+  },
+  "schemaVersion": "2.1.0",
+  "sdkVersion": "kfp-2.8.0"
+}

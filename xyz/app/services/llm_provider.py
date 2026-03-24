@@ -40,13 +40,14 @@ _GEMINI_MODEL_MAP = {
     # Main models
     "gemini": "gemini-2.5-flash",
     "gemini-2.5-flash": "gemini-2.5-flash",
-    "gemini-2.5-flash-preview": "publishers/google/models/gemini-2.5-flash-lite-preview-09-2025",
-    "gemini-2.5-flash-lite": "publishers/google/models/gemini-2.5-flash-lite",
-    "gemini-3.1-flash-lite": "gemini-3.1-flash-lite-preview",
-    # Fallbacks/Aliases for compatibility
-    "gemini-flash": "gemini-2.5-flash",
-    "gemini-pro": "gemini-2.0-flash-001",
+    "gemini-2.0-flash": "gemini-2.0-flash-001",
+    "gemini-2.5-flash-lite": "gemini-2.5-flash-lite",
+    "gemini-3-flash-preview": "gemini-3-flash-preview",
+    "mock": "mock",
 }
+
+# Cache for initialized model objects
+_GEMINI_MODELS: dict[str, object] = {}
 
 
 def generate(prompt: str, model: str) -> str:
@@ -87,26 +88,24 @@ def _call_gemini_vertex(prompt: str, model_alias: str) -> str:
         # Default to the main flash model if alias not found
         model_id = _GEMINI_MODEL_MAP.get(model_alias, "gemini-2.5-flash")
 
-        # Check cache first
-        global _GEMINI_MODELS
-        if "_GEMINI_MODELS" not in globals():
-            _GEMINI_MODELS = {}
+        logger.info(f"LLMProvider: preparing to call {model_id} (alias: {model_alias})")
 
         if model_id not in _GEMINI_MODELS:
             logger.info(f"Initializing Vertex AI Gemini model: {model_id}")
             _GEMINI_MODELS[model_id] = GenerativeModel(model_id)
 
-        logger.info(f"Calling Vertex AI Gemini: {model_id}")
+        logger.info(f"LLMProvider: calling model {model_id} with prompt length {len(prompt)}")
         model_obj = _GEMINI_MODELS[model_id]
 
-        response = model_obj.generate_content(
+        response = model_obj.generate_content(  # type: ignore
             prompt,
             generation_config=GenerationConfig(
                 temperature=0.2,
                 max_output_tokens=2048,
             ),
         )
-        return response.text
+        logger.info("LLMProvider: generation success")
+        return response.text  # type: ignore
 
     except Exception as e:
         logger.error(f"Vertex AI Gemini call failed: {e}")
@@ -124,7 +123,7 @@ def _call_claude(prompt: str) -> str:
             max_tokens=2048,
             messages=[{"role": "user", "content": prompt}],
         )
-        return message.content[0].text
+        return message.content[0].text  # type: ignore
 
     except KeyError as e:
         raise RuntimeError("ANTHROPIC_API_KEY environment variable is not set.") from e

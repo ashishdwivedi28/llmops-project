@@ -13,7 +13,7 @@ htmlcov/
 *.egg-info/
 docs/
 scripts/
-pipelines/
+/pipelines/
 infra/
 .git/
 .github/

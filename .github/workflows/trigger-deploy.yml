@@ -1,0 +1,70 @@
+name: Trigger Service — Build and Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "xyz/trigger_service/**"
+      - ".github/workflows/trigger-deploy.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
+  SERVICE_NAME: llmops-trigger
+  IMAGE_URI: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/llmops-repo/llmops-trigger
+  RUNTIME_SA: llmops-pipeline-runner@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Build and Push Docker image
+        working-directory: xyz/trigger_service
+        run: |
+          docker build -t $IMAGE_URI:${{ github.sha }} -t $IMAGE_URI:latest .
+          docker push $IMAGE_URI:${{ github.sha }}
+          docker push $IMAGE_URI:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy $SERVICE_NAME \
+            --image $IMAGE_URI:${{ github.sha }} \
+            --region $REGION \
+            --platform managed \
+            --service-account $RUNTIME_SA \
+            --allow-unauthenticated \
+            --set-env-vars="GOOGLE_CLOUD_PROJECT=${{ secrets.GCP_PROJECT_ID }}" \
+            --set-env-vars="PIPELINE_LOCATION=$REGION" \
+            --set-env-vars="PIPELINE_ROOT_GCS=gs://${{ secrets.GCP_PROJECT_ID }}-llmops-pipeline-artifacts" \
+            --set-env-vars="MASTER_PIPELINE_URI=gs://${{ secrets.GCP_PROJECT_ID }}-llmops-pipeline-artifacts/pipelines/master_pipeline.json" \
+            --set-env-vars="PIPELINE_SA=$RUNTIME_SA" \
+            --memory=512Mi \
+            --cpu=1 \
+            --min-instances=0 \
+            --max-instances=1
+
+      - name: Show trigger URL
+        run: |
+          gcloud run services describe $SERVICE_NAME \
+            --region $REGION \
+            --format="value(status.url)"

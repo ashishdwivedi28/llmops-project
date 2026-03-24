@@ -17,9 +17,10 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="LLMOps Pipeline", version="1.0.0")
 
 # CORS
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001").split(
-    ","
-)
+allowed_origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:3001,https://llmops-frontend-1012647224038.us-central1.run.app",
+).split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,

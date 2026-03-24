@@ -208,5 +208,15 @@ Total estimate for development/demo: Under $5/month
     *   If it says "Service account not found", ensure `llmops-backend-sa` exists.
     *   If it says "Permission denied" for Vertex AI, ensure `llmops-backend-sa` has `roles/aiplatform.user`.
 
+    to set the cors policy for backend use this : 
+    
+    first create the env.yaml file there add the url in backend folder
+    eg : ALLOWED_ORIGINS: "https://url.region.run.app,http://localhost:3000"
+
+    then run this command : 
+    gcloud run services update llmops-backend \
+    --region us-central1 \
+    --env-vars-file env.yaml
+
 **Problem:** Frontend shows "Backend unreachable"
 **Fix:** Check CORS settings on the backend. Ensure the frontend URL is in `ALLOWED_ORIGINS`.

@@ -11,7 +11,7 @@ The orchestrator does ZERO AI logic. It only routes.
 """
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 from app.pipelines.agent_pipeline import AgentPipeline
 from app.pipelines.base import BasePipeline
@@ -20,7 +20,7 @@ from app.pipelines.rag_pipeline import RAGPipeline
 
 logger = logging.getLogger(__name__)
 
-_PIPELINE_MAP: dict[str, type[BasePipeline]] = {
+_PIPELINE_MAP: dict[str, Any] = {
     "llm": LLMPipeline,
     "rag": RAGPipeline,
     "agent": AgentPipeline,
@@ -45,7 +45,7 @@ def get_pipeline(config: dict[str, Any], detection: dict[str, Any]) -> BasePipel
     # Explicit pipeline routing
     if config_pipeline != "auto" and config_pipeline in _PIPELINE_MAP:
         logger.info(f"Using config-specified pipeline: {config_pipeline}")
-        return _PIPELINE_MAP[config_pipeline](config)
+        return cast(BasePipeline, _PIPELINE_MAP[config_pipeline](config))
 
     # Auto mode: use task detection
     if detection.get("needs_agent"):

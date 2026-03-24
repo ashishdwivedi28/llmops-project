@@ -45,14 +45,19 @@ def detect(user_input: str, model: str) -> dict:
 
         classifier = _CLASSIFIER_MODEL
         prompt = DETECTION_PROMPT.format(user_input=user_input)
+
+        logger.info("TaskDetector: analyzing input with model gemini-2.5-flash")
         response = classifier.generate_content(prompt)
 
         raw = response.text.strip()
+        logger.debug(f"TaskDetector: raw response: {raw}")
 
         # Handle simple string keywords first
         if "NEEDS_RAG" in raw:
+            logger.info("TaskDetector: matched keyword NEEDS_RAG")
             return {"needs_rag": True, "needs_agent": False}
         if "NEEDS_AGENT" in raw:
+            logger.info("TaskDetector: matched keyword NEEDS_AGENT")
             return {"needs_rag": False, "needs_agent": True}
 
         # Cleanup potential markdown formatting
@@ -63,6 +68,7 @@ def detect(user_input: str, model: str) -> dict:
         raw = raw.strip()
 
         result = json.loads(raw)
+        logger.info(f"TaskDetector: parsed result: {result}")
         return {
             "needs_rag": bool(result.get("needs_rag", False)),
             "needs_agent": bool(result.get("needs_agent", False)),
