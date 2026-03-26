@@ -40,9 +40,12 @@ def log_request(
     session_id: str | None = None,
     retrieved_chunks: int | None = None,
     guardrail_pass: bool | None = None,
+    usage: dict | None = None,
 ) -> None:
     """Log a completed invoke request to BigQuery (or stdout as fallback)."""
 
+    usage = usage or {}
+    
     now = datetime.now(timezone.utc)
     row = {
         "timestamp": now.isoformat(),
@@ -60,6 +63,9 @@ def log_request(
         "needs_agent": bool(task_detection.get("needs_agent", False)),
         "retrieved_chunks": retrieved_chunks,
         "guardrail_pass": guardrail_pass,
+        "prompt_tokens": usage.get("prompt_tokens", 0),
+        "completion_tokens": usage.get("completion_tokens", 0),
+        "total_cost": float(usage.get("total_cost", 0.0)),
     }
 
     client, table = _get_bq_client()

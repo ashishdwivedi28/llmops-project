@@ -17,9 +17,12 @@ export async function getHealth(): Promise<HealthResponse> {
 
 export async function invoke(
   appId: AppId,
-  userInput: string
+  userInput: string,
+  model?: string
 ): Promise<InvokeResponse> {
   const body: InvokeRequest = { app_id: appId, user_input: userInput };
+  if (model) body.model = model;
+  
   const res = await fetch(`${BASE_URL}/invoke`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

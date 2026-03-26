@@ -1,4 +1,4 @@
-import type { AppId, PipelineType, TaskDetection } from "./api";
+import type { AppId, PipelineType, TaskDetection, UsageMetrics } from "./api";
 
 export interface ChatMessage {
   id: string;
@@ -12,6 +12,7 @@ export interface ChatMessage {
     model: string;
     latencyMs: number;
     appId: AppId;
+    usage?: UsageMetrics;
   };
 }
 
@@ -20,4 +21,5 @@ export interface ChatState {
   isLoading: boolean;
   error: string | null;
   selectedApp: AppId;
+  selectedModel: string;
 }

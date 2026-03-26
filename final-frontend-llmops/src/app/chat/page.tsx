@@ -10,13 +10,31 @@ const APP_OPTIONS: { id: AppId; label: string }[] = [
   { id: "code_agent", label: "Code Agent" },
 ];
 
+const MODEL_OPTIONS = [
+  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+  { id: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview" },
+  { id: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview" },
+  { id: "gemini-3.1-flash-preview", label: "Gemini 3.1 Flash Preview" },
+  { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro Preview" },
+  { id: "gemini-3.1-flash-lite-preview", label: "Gemini 3.1 Flash Lite Preview" },
+  { id: "claude-3-5-sonnet", label: "Claude 3.5 Sonnet" },
+  { id: "claude-3-opus", label: "Claude 3 Opus" },
+  { id: "gpt-4o", label: "GPT-4o" },
+  { id: "gpt-4o-mini", label: "GPT-4o Mini" },
+  { id: "grok-2-latest", label: "Grok 2 (Latest)" },
+  { id: "llama-3.3-70b-versatile", label: "Llama 3.3 (Groq)" },
+];
+
 export default function ChatPage() {
   const {
     messages,
     isLoading,
     error,
     selectedApp,
+    selectedModel,
     setSelectedApp,
+    setSelectedModel,
     sendMessage,
     clearMessages,
   } = useChat();
@@ -69,6 +87,19 @@ export default function ChatPage() {
               disabled={isLoading}
             >
               {APP_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="bg-gray-800 border border-gray-700 text-sm text-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-shadow"
+              disabled={isLoading}
+            >
+              {MODEL_OPTIONS.map((opt) => (
                 <option key={opt.id} value={opt.id}>
                   {opt.label}
                 </option>

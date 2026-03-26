@@ -10,7 +10,7 @@ class TestBigQueryTool:
     """Tests for the bigquery_query tool."""
 
     @patch.dict(os.environ, {"BIGQUERY_PROJECT": "test-project"})
-    @patch("app.pipelines.agent_pipeline.bigquery.Client")
+    @patch("google.cloud.bigquery.Client")
     def test_bigquery_query_success(self, mock_client):
         """Test successful BigQuery query execution."""
         from app.pipelines.agent_pipeline import bigquery_query
@@ -65,7 +65,7 @@ class TestBigQueryTool:
         assert "BIGQUERY_PROJECT" in result
 
     @patch.dict(os.environ, {"BIGQUERY_PROJECT": "test-project"})
-    @patch("app.pipelines.agent_pipeline.bigquery.Client")
+    @patch("google.cloud.bigquery.Client")
     def test_bigquery_query_no_results(self, mock_client):
         """Test handling of queries that return no results."""
         from app.pipelines.agent_pipeline import bigquery_query
@@ -82,7 +82,7 @@ class TestBigQueryTool:
         assert "no results" in result.lower()
 
     @patch.dict(os.environ, {"BIGQUERY_PROJECT": "test-project"})
-    @patch("app.pipelines.agent_pipeline.bigquery.Client")
+    @patch("google.cloud.bigquery.Client")
     def test_bigquery_query_exception(self, mock_client):
         """Test handling of query execution errors."""
         from app.pipelines.agent_pipeline import bigquery_query
@@ -97,7 +97,7 @@ class TestBigQueryTool:
         assert "Connection timeout" in result
 
     @patch.dict(os.environ, {"BIGQUERY_PROJECT": "test-project"})
-    @patch("app.pipelines.agent_pipeline.bigquery.Client")
+    @patch("google.cloud.bigquery.Client")
     def test_bigquery_query_many_rows(self, mock_client):
         """Test that results are limited to 20 rows."""
         from app.pipelines.agent_pipeline import bigquery_query
@@ -121,7 +121,7 @@ class TestBigQueryTool:
 class TestGCSTool:
     """Tests for the list_gcs_files tool."""
 
-    @patch("app.pipelines.agent_pipeline.storage.Client")
+    @patch("google.cloud.storage.Client")
     def test_list_gcs_files_success(self, mock_client):
         """Test successful GCS file listing."""
         from app.pipelines.agent_pipeline import list_gcs_files
@@ -142,7 +142,7 @@ class TestGCSTool:
         assert "file2.txt" in result
         assert "gs://my-bucket" in result
 
-    @patch("app.pipelines.agent_pipeline.storage.Client")
+    @patch("google.cloud.storage.Client")
     def test_list_gcs_files_empty(self, mock_client):
         """Test handling of empty bucket/prefix."""
         from app.pipelines.agent_pipeline import list_gcs_files
@@ -156,7 +156,7 @@ class TestGCSTool:
         assert "No files found" in result
         assert "my-bucket" in result
 
-    @patch("app.pipelines.agent_pipeline.storage.Client")
+    @patch("google.cloud.storage.Client")
     def test_list_gcs_files_no_prefix(self, mock_client):
         """Test listing files without prefix."""
         from app.pipelines.agent_pipeline import list_gcs_files
@@ -172,7 +172,7 @@ class TestGCSTool:
 
         assert "root-file.txt" in result
 
-    @patch("app.pipelines.agent_pipeline.storage.Client")
+    @patch("google.cloud.storage.Client")
     def test_list_gcs_files_exception(self, mock_client):
         """Test handling of GCS errors."""
         from app.pipelines.agent_pipeline import list_gcs_files

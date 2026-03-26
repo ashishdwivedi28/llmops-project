@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from app.orchestrator.router import get_pipeline
 from app.services.logging_service import log_request
 from app.services.task_detector import detect
+from app.services.llm_provider import usage_context
 from utils.config_loader import load_config
 
 logger = logging.getLogger(__name__)
@@ -18,11 +19,18 @@ router = APIRouter()
 class InvokeRequest(BaseModel):
     app_id: str
     user_input: str
+    model: str | None = None
 
 
 class TaskDetectionResult(BaseModel):
     needs_rag: bool
     needs_agent: bool
+
+
+class UsageMetrics(BaseModel):
+    prompt_tokens: int
+    completion_tokens: int
+    total_cost: float
 
 
 class InvokeResponse(BaseModel):
@@ -33,17 +41,24 @@ class InvokeResponse(BaseModel):
     pipeline_executed: str
     output: str
     latency_ms: float
+    usage: UsageMetrics
 
 
 @router.post("/invoke", response_model=InvokeResponse)
 async def invoke_pipeline(request: InvokeRequest) -> InvokeResponse:
     start_time = time.time()
     logger.info(f"Received invoke request for app_id={request.app_id}")
+    
+    # Reset usage context for this new request lifecycle
+    usage_context.set({"prompt_tokens": 0, "completion_tokens": 0, "total_cost": 0.0})
 
     try:
         # 1. Load config
         try:
             config = load_config(request.app_id)
+            if request.model:
+                config["model"] = request.model
+                config["active_model"] = request.model
             logger.info(
                 f"Config loaded: pipeline={config.get('pipeline')}, model={config.get('active_model')}"
             )
@@ -99,6 +114,9 @@ async def invoke_pipeline(request: InvokeRequest) -> InvokeResponse:
 
         # Calculate latency
         latency_ms = (time.time() - start_time) * 1000
+        
+        # Get tracked usage
+        current_usage = usage_context.get()
 
         # 5. Logging
         pipeline_name = type(pipeline).__name__.replace("Pipeline", "").lower()
@@ -112,6 +130,7 @@ async def invoke_pipeline(request: InvokeRequest) -> InvokeResponse:
                 task_detection=detection_data,
                 config=config,
                 retrieved_chunks=retrieved_chunks,
+                usage=current_usage,
             )
             logger.info(f"Request logged. Latency: {latency_ms:.2f}ms")
         except Exception as e:
@@ -126,6 +145,7 @@ async def invoke_pipeline(request: InvokeRequest) -> InvokeResponse:
             pipeline_executed=pipeline_name,
             output=output_text,
             latency_ms=latency_ms,
+            usage=UsageMetrics(**current_usage),
         )
 
     except HTTPException as he:

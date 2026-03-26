@@ -14,3 +14,4 @@ opentelemetry-exporter-gcp-logging>=1.9.0a0
 opentelemetry-exporter-otlp-proto-grpc==1.37.0
 opentelemetry-instrumentation-google-genai>=0.4b0
 opentelemetry-instrumentation-logging>=0.58b0
+litellm>=1.0.0

@@ -1,0 +1,35 @@
+--- xyz/app/services/llm_provider.py
++++ xyz/app/services/llm_provider.py
+@@ -5,14 +5,35 @@
+ 
+ import logging
+ import os
++import contextvars
+ 
+ import litellm
+ 
+ logger = logging.getLogger(__name__)
+ 
++# Context variable to store usage across multiple calls in a single request lifecycle
++usage_context = contextvars.ContextVar(
++    "usage_context", 
++    default={"prompt_tokens": 0, "completion_tokens": 0, "total_cost": 0.0}
++)
++
++def track_usage_callback(kwargs, completion_response, start_time, end_time):
++    """Callback to aggregate token usage and cost for the current context."""
++    usage = dict(usage_context.get())
++    if hasattr(completion_response, "usage") and completion_response.usage:
++        usage["prompt_tokens"] += getattr(completion_response.usage, "prompt_tokens", 0)
++        usage["completion_tokens"] += getattr(completion_response.usage, "completion_tokens", 0)
++    try:
++        usage["total_cost"] += litellm.completion_cost(completion_response)
++    except Exception:
++        pass
++    usage_context.set(usage)
++
++# Enable opentelemetry tracing and custom usage tracking
++litellm.success_callback = [track_usage_callback, "opentelemetry"]
++litellm.failure_callback = ["opentelemetry"]
++
+ # Vertex AI project and location
