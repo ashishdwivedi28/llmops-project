@@ -1,6 +1,6 @@
 """Reusable KFP components for BigQuery operations."""
 
-from datetime import UTC
+from datetime import timezone
 
 from kfp import dsl
 
@@ -91,7 +91,7 @@ def write_scores_to_bigquery(
 
     bq = bigquery.Client(project=project_id)
     table = f"{project_id}.llmops.evaluation_results"
-    now = datetime.now(UTC).isoformat()
+    now = datetime.now(timezone.utc).isoformat()
 
     rows = [
         {

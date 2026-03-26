@@ -1,6 +1,6 @@
 """Reusable KFP components for RAG operations."""
 
-from datetime import UTC
+from datetime import timezone
 
 from kfp import dsl
 
@@ -65,7 +65,7 @@ def ingest_document_to_rag(
             "gcs_uri": gcs_uri,
             "corpus_id": corpus_id,
             "status": "success",
-            "timestamp": datetime.now(UTC),
+            "timestamp": datetime.now(timezone.utc),
         }
     )
 

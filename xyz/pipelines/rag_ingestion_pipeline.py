@@ -11,7 +11,7 @@ Deploy with:
 import argparse
 import logging
 import os
-from datetime import UTC
+from datetime import timezone
 
 import google.cloud.aiplatform as aip
 from kfp import dsl
@@ -107,7 +107,7 @@ def update_ingestion_log(
             "gcs_uri": gcs_uri,
             "corpus_id": corpus_id,
             "status": status,
-            "timestamp": datetime.now(UTC),
+            "timestamp": datetime.now(timezone.utc),
         }
     )
 

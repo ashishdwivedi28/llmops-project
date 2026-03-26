@@ -4,7 +4,7 @@ Usage: python scripts/seed_firestore_config.py --project YOUR_PROJECT_ID
 """
 
 import argparse
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from google.cloud import firestore
 
@@ -77,7 +77,7 @@ PROMPTS = {
 
 def seed(project_id: str) -> None:
     db = firestore.Client(project=project_id)
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     for app_id, config in CONFIGS.items():
         doc_ref = db.collection("configs").document(app_id)
