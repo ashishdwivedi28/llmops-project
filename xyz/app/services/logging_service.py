@@ -5,7 +5,7 @@ Structured logging to BigQuery. Falls back to stdout if BigQuery is unavailable.
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ def log_request(
 ) -> None:
     """Log a completed invoke request to BigQuery (or stdout as fallback)."""
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     row = {
         "timestamp": now.isoformat(),
         "app_id": app_id,

@@ -19,7 +19,10 @@ def mock_vertex_ai():
     # We need to mock both 'vertexai' and 'vertexai.generative_models'
     with patch.dict(
         sys.modules,
-        {"vertexai": mock_vertex_module, "vertexai.generative_models": mock_gen_models_module},
+        {
+            "vertexai": mock_vertex_module,
+            "vertexai.generative_models": mock_gen_models_module,
+        },
     ):
         yield mock_model_instance
 
@@ -46,7 +49,9 @@ def reset_global_classifier():
     ],
 )
 @patch.dict(os.environ, {"GOOGLE_CLOUD_PROJECT": "test-project"})
-def test_detect_parses_llm_response(mock_vertex_ai, llm_response, expected_rag, expected_agent):
+def test_detect_parses_llm_response(
+    mock_vertex_ai, llm_response, expected_rag, expected_agent
+):
     """Verify that the task detector correctly parses various LLM responses."""
     # Mock the response object
     mock_response = MagicMock()

@@ -5,11 +5,9 @@ Follows agent-foundation patterns with pytest-mock and typed fixtures.
 """
 
 from unittest.mock import patch
-from typing import Any, Dict
 
 import pytest
 from fastapi.testclient import TestClient
-from pytest_mock import MockerFixture
 
 MOCK_CONFIG = {
     "pipeline": "llm",
@@ -84,13 +82,18 @@ def mock_load_config_side_effect(app_id: str):
 def test_client():
     """FastAPI test client with mocked config and logging."""
     with (
-        patch("utils.config_loader.load_config", side_effect=mock_load_config_side_effect),
+        patch(
+            "utils.config_loader.load_config", side_effect=mock_load_config_side_effect
+        ),
         patch("app.services.logging_service.log_request", return_value=None),
         patch(
             "app.services.task_detector.detect",
             return_value={"needs_rag": False, "needs_agent": False},
         ),
-        patch("app.services.llm_provider.generate", return_value="This is a mock response."),
+        patch(
+            "app.services.llm_provider.generate",
+            return_value="This is a mock response.",
+        ),
     ):
         from app.main import app
 

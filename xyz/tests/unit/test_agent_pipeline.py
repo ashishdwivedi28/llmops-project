@@ -1,6 +1,11 @@
 from unittest.mock import MagicMock, patch
 
-from app.pipelines.agent_pipeline import AgentPipeline, bigquery_query, calculate, list_gcs_files
+from app.pipelines.agent_pipeline import (
+    AgentPipeline,
+    bigquery_query,
+    calculate,
+    list_gcs_files,
+)
 
 
 class TestAgentPipeline:
@@ -10,17 +15,18 @@ class TestAgentPipeline:
         pipeline = AgentPipeline(config)
 
         # Mock _run_adk_agent to raise ImportError to simulate missing ADK
-        with patch.object(pipeline, "_run_adk_agent", side_effect=ImportError("No ADK")):
-            with patch(
-                "app.services.llm_provider.generate", return_value="Fallback response"
-            ) as mock_generate:
-                result = pipeline.execute("Hello")
+        with patch.object(
+            pipeline, "_run_adk_agent", side_effect=ImportError("No ADK")
+        ), patch(
+            "app.services.llm_provider.generate", return_value="Fallback response"
+        ) as mock_generate:
+            result = pipeline.execute("Hello")
 
-                assert result == "Fallback response"
-                mock_generate.assert_called_once()
-                args, _ = mock_generate.call_args
-                assert "You are a bot." in args[0]
-                assert "User: Hello" in args[0]
+            assert result == "Fallback response"
+            mock_generate.assert_called_once()
+            args, _ = mock_generate.call_args
+            assert "You are a bot." in args[0]
+            assert "User: Hello" in args[0]
 
     def test_mock_model_returns_mock_response(self):
         """Test that 'mock' model returns a hardcoded string immediately."""

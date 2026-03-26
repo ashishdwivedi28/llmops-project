@@ -39,7 +39,10 @@ def mock_vertexai():
 
     with patch.dict(
         sys.modules,
-        {"vertexai": mock_vertex_module, "vertexai.generative_models": mock_generative_models},
+        {
+            "vertexai": mock_vertex_module,
+            "vertexai.generative_models": mock_generative_models,
+        },
     ):
         yield mock_vertex_module
 
@@ -75,7 +78,8 @@ def test_generate_unknown_model_raises_value_error():
 
 
 @patch.dict(
-    os.environ, {"GOOGLE_CLOUD_PROJECT": "test-project", "VERTEXAI_LOCATION": "us-central1"}
+    os.environ,
+    {"GOOGLE_CLOUD_PROJECT": "test-project", "VERTEXAI_LOCATION": "us-central1"},
 )
 def test_generate_gemini_model_succeeds(mock_vertexai):
     """Test that the Gemini provider can be called successfully."""
@@ -85,7 +89,9 @@ def test_generate_gemini_model_succeeds(mock_vertexai):
     response = provider.generate("test prompt", "gemini-1.5-pro")
 
     assert response == "Gemini response"
-    mock_vertexai.init.assert_called_with(project="test-project", location="us-central1")
+    mock_vertexai.init.assert_called_with(
+        project="test-project", location="us-central1"
+    )
     # Access the mock through the fixture which is the module mock
     mock_vertexai.generative_models.GenerativeModel.assert_called()
 
@@ -96,7 +102,9 @@ def test_generate_gemini_missing_project_id_raises_runtime_error(mock_vertexai):
     # Force global var to be empty
     provider._VERTEXAI_PROJECT = ""
 
-    with pytest.raises(RuntimeError, match="GOOGLE_CLOUD_PROJECT environment variable is not set"):
+    with pytest.raises(
+        RuntimeError, match="GOOGLE_CLOUD_PROJECT environment variable is not set"
+    ):
         provider.generate("test prompt", "gemini-pro")
 
 
@@ -111,7 +119,9 @@ def test_generate_claude_model_succeeds(mock_anthropic):
 @patch.dict(os.environ, {}, clear=True)
 def test_generate_claude_missing_api_key_raises_runtime_error(mock_anthropic):
     """Verify that a missing Anthropic API key raises a RuntimeError for Claude."""
-    with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY environment variable is not set"):
+    with pytest.raises(
+        RuntimeError, match="ANTHROPIC_API_KEY environment variable is not set"
+    ):
         provider.generate("test prompt", "claude-3-opus-20240229")
 
 

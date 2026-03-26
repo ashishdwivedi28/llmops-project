@@ -11,6 +11,7 @@ Deploy with:
 import argparse
 import logging
 import os
+from datetime import UTC
 
 import google.cloud.aiplatform as aip
 from kfp import dsl
@@ -95,18 +96,20 @@ def update_ingestion_log(
     status: str = "success",
 ) -> None:
     """Log the ingestion event to Firestore for audit trail."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from google.cloud import firestore
 
     db = firestore.Client(project=project_id)
-    db.collection("ingestion_log").add({
-        "app_id": app_id,
-        "gcs_uri": gcs_uri,
-        "corpus_id": corpus_id,
-        "status": status,
-        "timestamp": datetime.now(timezone.utc),
-    })
+    db.collection("ingestion_log").add(
+        {
+            "app_id": app_id,
+            "gcs_uri": gcs_uri,
+            "corpus_id": corpus_id,
+            "status": status,
+            "timestamp": datetime.now(UTC),
+        }
+    )
 
 
 # ── Pipeline definition ───────────────────────────────────────────────────────

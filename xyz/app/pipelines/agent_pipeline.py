@@ -76,7 +76,9 @@ def list_gcs_files(bucket_name: str, prefix: str = "") -> str:
         names = [b.name for b in blobs]
         if not names:
             return f"No files found in {bucket_name}/{prefix}"
-        return f"Files in gs://{bucket_name}/{prefix}:\n" + "\n".join(f"  - {n}" for n in names)
+        return f"Files in gs://{bucket_name}/{prefix}:\n" + "\n".join(
+            f"  - {n}" for n in names
+        )
     except Exception as e:
         return f"GCS listing failed: {str(e)}"
 
@@ -155,7 +157,7 @@ class AgentPipeline(BasePipeline):
         from google.adk.sessions import InMemorySessionService
 
         from app.pipelines.callbacks import LoggingCallbacks
-        
+
         logging_callbacks = LoggingCallbacks()
 
         agent = Agent(
@@ -179,9 +181,13 @@ class AgentPipeline(BasePipeline):
             artifact_service=artifact_service,
         )
 
-        session = session_service.create_session(app_name="llmops_agent", user_id="system")
+        session = session_service.create_session(
+            app_name="llmops_agent", user_id="system"
+        )
 
-        content = genai_types.Content(role="user", parts=[genai_types.Part(text=user_input)])
+        content = genai_types.Content(
+            role="user", parts=[genai_types.Part(text=user_input)]
+        )
 
         final_response = ""
         for event in runner.run(

@@ -56,7 +56,8 @@ class TestRAGPipeline:
             },
         ):
             with patch.dict(
-                os.environ, {"GOOGLE_CLOUD_PROJECT": "test-project", "RAG_LOCATION": "us-central1"}
+                os.environ,
+                {"GOOGLE_CLOUD_PROJECT": "test-project", "RAG_LOCATION": "us-central1"},
             ):
                 # Initialize pipeline
                 pipeline = RAGPipeline(mock_config)
@@ -75,9 +76,7 @@ class TestRAGPipeline:
                 assert call_args.kwargs["similarity_top_k"] == 2
 
                 # Check prompt construction
-                expected_context = (
-                    "[Source: doc1]\nThis is chunk 1\n\n---\n\n[Source: doc2]\nThis is chunk 2"
-                )
+                expected_context = "[Source: doc1]\nThis is chunk 1\n\n---\n\n[Source: doc2]\nThis is chunk 2"
                 mock_llm_provider.generate.assert_called_once()
                 args, _ = mock_llm_provider.generate.call_args
                 prompt = args[0]
@@ -108,19 +107,18 @@ class TestRAGPipeline:
                 "vertexai.preview": mock_preview,
                 "vertexai.preview.rag": mock_rag_module,
             },
-        ):
-            with patch.dict(os.environ, {"GOOGLE_CLOUD_PROJECT": "test-project"}):
-                pipeline = RAGPipeline(mock_config)
-                response, chunks_count = pipeline.execute("test question")
+        ), patch.dict(os.environ, {"GOOGLE_CLOUD_PROJECT": "test-project"}):
+            pipeline = RAGPipeline(mock_config)
+            response, chunks_count = pipeline.execute("test question")
 
-                assert chunks_count == 0
-                assert response == "I don't know"
+            assert chunks_count == 0
+            assert response == "I don't know"
 
-                # Verify warning note in prompt
-                mock_llm_provider.generate.assert_called_once()
-                args, _ = mock_llm_provider.generate.call_args
-                prompt = args[0]
-                assert "I could not find relevant information" in prompt
+            # Verify warning note in prompt
+            mock_llm_provider.generate.assert_called_once()
+            args, _ = mock_llm_provider.generate.call_args
+            prompt = args[0]
+            assert "I could not find relevant information" in prompt
 
     @patch("app.pipelines.rag_pipeline.llm_provider")
     def test_initialization_missing_config(self, mock_llm_provider):

@@ -37,7 +37,9 @@ class TestInvokeEndpoint:
 
     def test_invoke_response_contains_task_detection(self, test_client):
         """Response must include task_detection with needs_rag and needs_agent."""
-        response = test_client.post("/invoke", json={"app_id": "mock_app", "user_input": "Test"})
+        response = test_client.post(
+            "/invoke", json={"app_id": "mock_app", "user_input": "Test"}
+        )
         data = response.json()
         assert "task_detection" in data
         assert "needs_rag" in data["task_detection"]

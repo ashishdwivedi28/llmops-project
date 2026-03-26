@@ -9,10 +9,12 @@ import json
 import os
 import sys
 from typing import Literal, TypeVar
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
-from dotenv import load_dotenv
 
-T = TypeVar('T', bound=BaseModel)
+from dotenv import load_dotenv
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+
+T = TypeVar("T", bound=BaseModel)
+
 
 def initialize_environment(
     model_class: type[T],

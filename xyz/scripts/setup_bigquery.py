@@ -2,7 +2,9 @@
 Run this once to create all BigQuery tables.
 Usage: python scripts/setup_bigquery.py --project YOUR_PROJECT_ID
 """
+
 import argparse
+
 from google.cloud import bigquery
 
 SCHEMA_REQUESTS = [
@@ -54,6 +56,7 @@ SCHEMA_EXPERIMENTS = [
     bigquery.SchemaField("sample_size", "INTEGER", mode="NULLABLE"),
 ]
 
+
 def create_tables(project_id: str) -> None:
     client = bigquery.Client(project=project_id)
     dataset_id = f"{project_id}.llmops"
@@ -75,11 +78,11 @@ def create_tables(project_id: str) -> None:
         table = bigquery.Table(table_ref, schema=schema)
         if table_name == "requests":
             table.time_partitioning = bigquery.TimePartitioning(
-                type_=bigquery.TimePartitioningType.DAY,
-                field="timestamp"
+                type_=bigquery.TimePartitioningType.DAY, field="timestamp"
             )
         client.create_table(table, exists_ok=True)
         print(f"Table {table_ref} ready.")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

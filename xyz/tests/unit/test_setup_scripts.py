@@ -38,7 +38,9 @@ class TestSetupScripts:
 
     def test_seed_firestore(self):
         """Should seed Firestore with initial config."""
-        with patch("scripts.seed_firestore_config.firestore.Client") as mock_firestore_cls:
+        with patch(
+            "scripts.seed_firestore_config.firestore.Client"
+        ) as mock_firestore_cls:
             mock_db = mock_firestore_cls.return_value
 
             # Setup mocks so that recursive collection/document calls return distinct mocks

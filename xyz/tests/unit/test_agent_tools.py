@@ -5,8 +5,6 @@ Tests for agent pipeline tools (BigQuery, GCS, Calculator).
 import os
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 class TestBigQueryTool:
     """Tests for the bigquery_query tool."""

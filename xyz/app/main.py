@@ -1,5 +1,4 @@
 import logging
-import os
 
 from dotenv import load_dotenv
 
@@ -20,14 +19,15 @@ app = FastAPI(title="LLMOps Pipeline", version="1.0.0")
 # CORS
 # Handled by ServerEnv now
 # allowed_origins is loaded later
-# We defer CORS setup until startup when env is loaded, 
+# We defer CORS setup until startup when env is loaded,
 # or we load a basic env here for module-level execution.
 try:
-    from utils.config import initialize_environment, ServerEnv
+    from utils.config import ServerEnv, initialize_environment
+
     _env = initialize_environment(ServerEnv, print_config=False)
     _origins = _env.allow_origins_list
 except Exception:
-    _origins = ["*"] # Fallback for build time
+    _origins = ["*"]  # Fallback for build time
 
 app.add_middleware(
     CORSMiddleware,
@@ -40,10 +40,11 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_checks() -> None:
-    from utils.config import initialize_environment, ServerEnv
+    from utils.config import ServerEnv, initialize_environment
+
     env = initialize_environment(ServerEnv, print_config=False)
     project_id = env.google_cloud_project
-    
+
     # Check for Google Cloud Project ID for Vertex AI
     if not project_id:
         logger.warning(
@@ -55,11 +56,13 @@ async def startup_checks() -> None:
             setup_opentelemetry(
                 project_id=project_id,
                 agent_name="llmops-backend",
-                log_level=env.log_level
+                log_level=env.log_level,
             )
             logger.info("OpenTelemetry observability initialized.")
         except Exception as e:
-            logger.warning(f"Failed to initialize OpenTelemetry (likely permissions): {e}")
+            logger.warning(
+                f"Failed to initialize OpenTelemetry (likely permissions): {e}"
+            )
             pass
 
 

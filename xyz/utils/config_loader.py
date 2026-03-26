@@ -33,14 +33,16 @@ def load_config(app_id: str) -> dict[str, Any]:
 
     if project:
         return _load_from_firestore(app_id, project)
-    else:
-        return _load_from_json(app_id)
+    return _load_from_json(app_id)
 
 
 def _load_from_firestore(app_id: str, project: str) -> dict[str, Any]:
     """Load config and active prompt from Firestore."""
     now = time.time()
-    if app_id in _cache and (now - _cache_timestamps.get(app_id, 0)) < _CACHE_TTL_SECONDS:
+    if (
+        app_id in _cache
+        and (now - _cache_timestamps.get(app_id, 0)) < _CACHE_TTL_SECONDS
+    ):
         return cast(dict[str, Any], _cache[app_id])
 
     try:
@@ -82,7 +84,9 @@ def _load_from_json(app_id: str) -> dict[str, Any]:
     with open(_LOCAL_CONFIG_PATH) as f:
         all_configs = json.load(f)
     if app_id not in all_configs:
-        raise KeyError(f"app_id '{app_id}' not found. Valid: {list(all_configs.keys())}")
+        raise KeyError(
+            f"app_id '{app_id}' not found. Valid: {list(all_configs.keys())}"
+        )
     return cast(dict[str, Any], all_configs[app_id])
 
 

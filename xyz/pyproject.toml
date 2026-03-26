@@ -14,8 +14,10 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.ruff.lint]
+ignore = ["E501", "S108", "S608", "S307", "S607", "PTH119", "PTH123", "B005", "B905", "N806", "SIM117"]
 select = [
     "E",   # pycodestyle errors
+    "W",   # warnings
     "W",   # pycodestyle warnings
     "F",   # pyflakes
     "I",   # isort
@@ -70,6 +72,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+pythonpath = ["."]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

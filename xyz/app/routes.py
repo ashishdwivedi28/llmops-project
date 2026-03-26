@@ -54,7 +54,9 @@ async def invoke_pipeline(request: InvokeRequest) -> InvokeResponse:
             ) from e
         except FileNotFoundError as e:
             logger.critical("Configuration file missing.")
-            raise HTTPException(status_code=500, detail="Configuration file missing.") from e
+            raise HTTPException(
+                status_code=500, detail="Configuration file missing."
+            ) from e
 
         # 2. Task Detection
         try:
@@ -73,7 +75,9 @@ async def invoke_pipeline(request: InvokeRequest) -> InvokeResponse:
             logger.info(f"Routing to pipeline: {type(pipeline).__name__}")
         except Exception as e:
             logger.error(f"Orchestration failed: {e}")
-            raise HTTPException(status_code=500, detail=f"Orchestration failed: {str(e)}") from e
+            raise HTTPException(
+                status_code=500, detail=f"Orchestration failed: {str(e)}"
+            ) from e
 
         # 4. Execute Pipeline
         retrieved_chunks = None
@@ -128,4 +132,6 @@ async def invoke_pipeline(request: InvokeRequest) -> InvokeResponse:
         raise he
     except Exception as e:
         logger.exception("Unexpected error in invoke handler")
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Internal Server Error: {str(e)}"
+        ) from e

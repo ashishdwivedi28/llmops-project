@@ -5,8 +5,6 @@ Tests for RAG pipeline with Vertex AI RAG Engine integration.
 import os
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 class TestRAGPipelineInitialization:
     """Tests for RAG pipeline initialization."""
@@ -323,7 +321,10 @@ class TestRAGPipelineExecution:
         # Should still generate a response, but with NO_CONTEXT_NOTE
         assert isinstance(result, str)
         # The response should indicate no context was found
-        assert "could not find relevant information" in result.lower() or "don't have information" in result.lower()
+        assert (
+            "could not find relevant information" in result.lower()
+            or "don't have information" in result.lower()
+        )
 
     @patch.dict(os.environ, {}, clear=True)
     @patch("app.pipelines.rag_pipeline.llm_provider.generate")

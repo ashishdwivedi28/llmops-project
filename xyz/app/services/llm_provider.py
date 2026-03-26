@@ -31,7 +31,8 @@ def _init_vertexai() -> None:
     vertexai.init(project=_VERTEXAI_PROJECT, location=_VERTEXAI_LOCATION)
     _VERTEXAI_INITIALIZED = True
     logger.info(
-        f"Vertex AI initialized: project={_VERTEXAI_PROJECT}, " f"location={_VERTEXAI_LOCATION}"
+        f"Vertex AI initialized: project={_VERTEXAI_PROJECT}, "
+        f"location={_VERTEXAI_LOCATION}"
     )
 
 
@@ -94,7 +95,9 @@ def _call_gemini_vertex(prompt: str, model_alias: str) -> str:
             logger.info(f"Initializing Vertex AI Gemini model: {model_id}")
             _GEMINI_MODELS[model_id] = GenerativeModel(model_id)
 
-        logger.info(f"LLMProvider: calling model {model_id} with prompt length {len(prompt)}")
+        logger.info(
+            f"LLMProvider: calling model {model_id} with prompt length {len(prompt)}"
+        )
         model_obj = _GEMINI_MODELS[model_id]
 
         response = model_obj.generate_content(  # type: ignore

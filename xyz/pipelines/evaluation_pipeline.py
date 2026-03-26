@@ -12,6 +12,7 @@ Deploy with:
 """
 
 import os
+from datetime import UTC
 
 import google.cloud.aiplatform as aip
 from kfp import dsl
@@ -127,15 +128,17 @@ Return exactly: {{"correctness": N, "relevance": N, "completeness": N, "explanat
                 2,
             )
 
-            scored.append({
-                **row,
-                "correctness_score": scores.get("correctness", 3),
-                "relevance_score": scores.get("relevance", 3),
-                "completeness_score": scores.get("completeness", 3),
-                "avg_score": avg,
-                "judge_model": judge_model,
-                "judge_explanation": scores.get("explanation", ""),
-            })
+            scored.append(
+                {
+                    **row,
+                    "correctness_score": scores.get("correctness", 3),
+                    "relevance_score": scores.get("relevance", 3),
+                    "completeness_score": scores.get("completeness", 3),
+                    "avg_score": avg,
+                    "judge_model": judge_model,
+                    "judge_explanation": scores.get("explanation", ""),
+                }
+            )
             time.sleep(0.5)  # avoid rate limiting
         except Exception as e:
             print(f"Scoring failed for row: {e}")
@@ -155,7 +158,7 @@ def write_scores_to_bigquery(
 ) -> float:
     """Write evaluation scores to BigQuery. Returns average score."""
     import json
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from google.cloud import bigquery
 
@@ -166,27 +169,29 @@ def write_scores_to_bigquery(
 
     client = bigquery.Client(project=project_id)
     table = f"{project_id}.llmops.evaluation_results"
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     rows = []
     for row in scored:
-        rows.append({
-            "timestamp": now,
-            "eval_run_id": eval_run_id,
-            "app_id": row.get("app_id", ""),
-            "request_timestamp": row.get("timestamp", ""),
-            "user_input": row.get("user_input", "")[:2000],
-            "output": row.get("output", "")[:4000],
-            "pipeline_executed": row.get("pipeline_executed", ""),
-            "prompt_version": row.get("prompt_version", ""),
-            "model": row.get("model", ""),
-            "correctness_score": row.get("correctness_score"),
-            "relevance_score": row.get("relevance_score"),
-            "completeness_score": row.get("completeness_score"),
-            "avg_score": row.get("avg_score"),
-            "judge_model": row.get("judge_model", ""),
-            "judge_explanation": row.get("judge_explanation", "")[:1000],
-        })
+        rows.append(
+            {
+                "timestamp": now,
+                "eval_run_id": eval_run_id,
+                "app_id": row.get("app_id", ""),
+                "request_timestamp": row.get("timestamp", ""),
+                "user_input": row.get("user_input", "")[:2000],
+                "output": row.get("output", "")[:4000],
+                "pipeline_executed": row.get("pipeline_executed", ""),
+                "prompt_version": row.get("prompt_version", ""),
+                "model": row.get("model", ""),
+                "correctness_score": row.get("correctness_score"),
+                "relevance_score": row.get("relevance_score"),
+                "completeness_score": row.get("completeness_score"),
+                "avg_score": row.get("avg_score"),
+                "judge_model": row.get("judge_model", ""),
+                "judge_explanation": row.get("judge_explanation", "")[:1000],
+            }
+        )
 
     errors = client.insert_rows_json(table, rows)
     if errors:
@@ -212,7 +217,7 @@ def update_config_if_needed(
       Promote it to active if its stored score > current avg.
     Returns action taken.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from google.cloud import firestore
 
@@ -226,7 +231,9 @@ def update_config_if_needed(
     if avg_score >= threshold:
         return f"Score {avg_score} meets threshold {threshold}. No change."
 
-    print(f"Score {avg_score} below threshold {threshold}. Looking for better prompt...")
+    print(
+        f"Score {avg_score} below threshold {threshold}. Looking for better prompt..."
+    )
 
     # Find best candidate prompt (status=candidate, score > avg_score)
     prompts = (
@@ -242,20 +249,24 @@ def update_config_if_needed(
             best_version = p.id
 
     if best_version:
-        config_ref.update({
-            "active_prompt_version": best_version,
-            "updated_at": datetime.now(timezone.utc),
-        })
+        config_ref.update(
+            {
+                "active_prompt_version": best_version,
+                "updated_at": datetime.now(UTC),
+            }
+        )
         # Mark old as retired, new as active
-        config_ref.collection("prompts").document(current_version).update({
-            "status": "retired"
-        })
-        config_ref.collection("prompts").document(best_version).update({
-            "status": "active"
-        })
+        config_ref.collection("prompts").document(current_version).update(
+            {"status": "retired"}
+        )
+        config_ref.collection("prompts").document(best_version).update(
+            {"status": "active"}
+        )
         return f"Promoted prompt {best_version} (score {best_score}) over {current_version} (score {avg_score})"
 
-    return f"No better candidate found. Current score: {avg_score}. Manual review needed."
+    return (
+        f"No better candidate found. Current score: {avg_score}. Manual review needed."
+    )
 
 
 @dsl.pipeline(

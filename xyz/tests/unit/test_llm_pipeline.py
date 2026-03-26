@@ -15,7 +15,8 @@ class TestLLMPipeline:
         mock_config["prompt_template"] = "User: {user_input}"
 
         with patch(
-            "app.pipelines.llm_pipeline.llm_provider.generate", return_value="Test response"
+            "app.pipelines.llm_pipeline.llm_provider.generate",
+            return_value="Test response",
         ) as mock_gen:
             pipeline = LLMPipeline(mock_config)
             result = pipeline.execute("Hello")
@@ -39,7 +40,7 @@ class TestLLMPipeline:
     def test_execute_raises_on_provider_failure(self, mock_config):
         """RuntimeError from llm_provider should propagate."""
         with patch(
-            "app.pipelines.llm_pipeline.llm_provider.generate", side_effect=RuntimeError("API down")
-        ):
-            with pytest.raises(RuntimeError, match="API down"):
-                LLMPipeline(mock_config).execute("Hello")
+            "app.pipelines.llm_pipeline.llm_provider.generate",
+            side_effect=RuntimeError("API down"),
+        ), pytest.raises(RuntimeError, match="API down"):
+            LLMPipeline(mock_config).execute("Hello")

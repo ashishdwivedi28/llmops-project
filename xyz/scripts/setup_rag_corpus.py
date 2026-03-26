@@ -5,6 +5,7 @@ Run once per app_id that has pipeline=rag.
 us-west1
 Usage: python scripts/setup_rag_corpus.py --project YOUR_PROJECT_ID --app_id rag_bot
 """
+
 import argparse
 import logging
 
@@ -39,9 +40,7 @@ def create_corpus(project_id: str, app_id: str, location: str = "us-central1") -
 
     # Save corpus_id to Firestore so the serving pipeline can find it
     db = firestore.Client(project=project_id)
-    db.collection("configs").document(app_id).update({
-        "rag_corpus_id": corpus_name
-    })
+    db.collection("configs").document(app_id).update({"rag_corpus_id": corpus_name})
     logger.info(f"Corpus ID saved to Firestore for {app_id}")
 
     return corpus_name
