@@ -84,9 +84,7 @@ class TestConfigLoader:
                 # We can mock the document() method to return different mocks based on args
                 mock_config_ref = MagicMock()
                 mock_config_ref.get.return_value = mock_doc_snapshot
-                mock_config_ref.collection.return_value.document.return_value.get.return_value = (
-                    mock_prompt_snapshot
-                )
+                mock_config_ref.collection.return_value.document.return_value.get.return_value = mock_prompt_snapshot
 
                 mock_db.collection.return_value.document.return_value = mock_config_ref
 

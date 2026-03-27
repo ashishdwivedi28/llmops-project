@@ -1,18 +1,9 @@
 import json
 import logging
 import os
+from app.services.prompt_manager import prompt_manager
 
 logger = logging.getLogger(__name__)
-
-DETECTION_PROMPT = """Analyze this user request and classify it. Return ONLY valid JSON, nothing else.
-
-User request: "{user_input}"
-
-Rules:
-- needs_rag: true if the user is asking about specific documents, files, policies, or internal data
-- needs_agent: true if the user needs multi-step reasoning, code execution, or tool use
-
-Return exactly: {{"needs_rag": true/false, "needs_agent": true/false}}"""
 
 _CLASSIFIER_MODEL = None
 
@@ -29,27 +20,21 @@ def detect(user_input: str, model: str) -> dict:
         return {"needs_rag": False, "needs_agent": False}
 
     try:
-        if _CLASSIFIER_MODEL is None:
-            import vertexai
-            from vertexai.generative_models import GenerativeModel
+        # Use the unified llm_provider instead of initializing Vertex AI directly.
+        # This ensures we go through LiteLLM and respect whatever provider the user has configured,
+        # while defaulting to a fast/cheap model (like gemini-2.5-flash) for classification.
+        from app.services import llm_provider
+        
+        prompt_template = prompt_manager.get_prompt("task_detector")
+        prompt = prompt_template.format(user_input=user_input)
 
-            project = os.getenv("GOOGLE_CLOUD_PROJECT", "")
-            location = os.getenv("VERTEXAI_LOCATION", "us-central1")
-
-            # Initialize only if project is set to avoid errors in local tests without env vars
-            if project:
-                vertexai.init(project=project, location=location)
-
-            # Always use Flash for classification — fast and cheap
-            _CLASSIFIER_MODEL = GenerativeModel("gemini-2.5-flash")
-
-        classifier = _CLASSIFIER_MODEL
-        prompt = DETECTION_PROMPT.format(user_input=user_input)
-
-        logger.info("TaskDetector: analyzing input with model gemini-2.5-flash")
-        response = classifier.generate_content(prompt)
-
-        raw = response.text.strip()
+        logger.info(f"TaskDetector: analyzing input with fast classifier model (defaulting to gemini-2.5-flash)")
+        
+        # We can safely use gemini-2.5-flash if GOOGLE_CLOUD_PROJECT is set, 
+        # otherwise we should fallback to whatever model they passed in.
+        classifier_model = "gemini-2.5-flash" if os.getenv("GOOGLE_CLOUD_PROJECT") else model
+        
+        raw = llm_provider.generate(prompt=prompt, model=classifier_model).strip()
         logger.debug(f"TaskDetector: raw response: {raw}")
 
         # Handle simple string keywords first

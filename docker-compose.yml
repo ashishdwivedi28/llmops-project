@@ -1,0 +1,24 @@
+services:
+  app:
+    build:
+      context: ./xyz
+      dockerfile: Dockerfile
+    image: llmops-backend:local
+    container_name: llmops-backend-local
+    ports:
+      - "8080:8080"
+    environment:
+      - GOOGLE_CLOUD_PROJECT=search-ahmed
+      - BIGQUERY_PROJECT=search-ahmed
+      - FIRESTORE_PROJECT=search-ahmed
+      - LOG_LEVEL=DEBUG
+      - GOOGLE_APPLICATION_CREDENTIALS=/gcloud/application_default_credentials.json
+    volumes:
+      - ${HOME}/.config/gcloud/application_default_credentials.json:/gcloud/application_default_credentials.json:ro
+      - ./xyz:/app
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./xyz
+          target: /app
+    restart: unless-stopped

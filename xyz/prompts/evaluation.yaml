@@ -1,0 +1,19 @@
+name: evaluation
+description: Evaluates the AI response on a scale of 1 to 5.
+active_version: v1
+versions:
+  v1:
+    description: Initial evaluation prompt
+    template: |
+      You are an impartial AI judge. Evaluate the following AI assistant response.
+      Rate the response on a scale of 1 to 5 (1 = terrible/hallucinated, 5 = excellent/accurate).
+
+      User Input: {user_input}
+      AI Response: {output}
+
+      Return your evaluation exactly in this format:
+      SCORE: [1-5]
+      REASONING: [Brief explanation]
+    variables:
+      - user_input
+      - output

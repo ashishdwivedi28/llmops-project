@@ -9,12 +9,14 @@ Receives:
 
 This is the bridge between GCP events and Vertex AI Pipelines.
 """
-import os
+
 import base64
 import json
 import logging
-from flask import Flask, request, jsonify
+import os
+
 import google.cloud.aiplatform as aip
+from flask import Flask, jsonify, request
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,7 +34,7 @@ GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
 def submit_master_pipeline(trigger_type: str, app_id: str, extra_params: dict) -> str:
     """Submit the master pipeline to Vertex AI Pipelines."""
     aip.init(project=PROJECT_ID, location=LOCATION)
-    
+
     params = {
         "trigger_type": trigger_type,
         "app_id": app_id,
@@ -41,7 +43,7 @@ def submit_master_pipeline(trigger_type: str, app_id: str, extra_params: dict) -
         "google_api_key": GOOGLE_API_KEY,
         **extra_params,
     }
-    
+
     job = aip.PipelineJob(
         display_name=f"master-{trigger_type}-{app_id}",
         template_uri=MASTER_PIPELINE_URI,
@@ -61,18 +63,18 @@ def handle_gcs_upload():
         envelope = request.get_json()
         if not envelope or "message" not in envelope:
             return jsonify({"error": "Invalid Pub/Sub message"}), 400
-        
+
         message_data = base64.b64decode(envelope["message"]["data"]).decode("utf-8")
         gcs_event = json.loads(message_data)
-        
+
         gcs_uri = f"gs://{gcs_event['bucket']}/{gcs_event['name']}"
-        
+
         # Determine app_id from folder structure (bucket/app_id/filename.pdf)
         path_parts = gcs_event["name"].split("/")
         app_id = path_parts[0] if len(path_parts) > 1 else "rag_bot"
-        
+
         logger.info(f"GCS upload detected: {gcs_uri} → app_id={app_id}")
-        
+
         job_name = submit_master_pipeline(
             trigger_type="rag_ingestion",
             app_id=app_id,
@@ -82,7 +84,7 @@ def handle_gcs_upload():
             },
         )
         return jsonify({"status": "submitted", "job": job_name}), 200
-    
+
     except Exception as e:
         logger.error(f"GCS upload handler error: {e}")
         return jsonify({"error": str(e)}), 500
@@ -96,10 +98,10 @@ def handle_trigger():
         trigger_type = data.get("trigger_type", "evaluation")
         app_id = data.get("app_id", "default_llm")
         extra = {k: v for k, v in data.items() if k not in ("trigger_type", "app_id")}
-        
+
         job_name = submit_master_pipeline(trigger_type, app_id, extra)
         return jsonify({"status": "submitted", "job": job_name}), 200
-    
+
     except Exception as e:
         logger.error(f"Trigger handler error: {e}")
         return jsonify({"error": str(e)}), 500

@@ -113,9 +113,16 @@ class RAGPipeline(BasePipeline):
         if not context:
             # No documents found — still answer but warn
             logger.info("RAGPipeline: No context found, using fallback prompt.")
-            prompt = self.prompt_template.format(context=NO_CONTEXT_NOTE, user_input=user_input)
+            prompt = self.prompt_template.format(
+                context=NO_CONTEXT_NOTE, user_input=user_input
+            )
         else:
             prompt = self.prompt_template.format(context=context, user_input=user_input)
+
+        # Inject current date
+        from datetime import datetime
+        current_date = datetime.now().strftime("%A, %B %d, %Y")
+        prompt = f"System Info: Today is {current_date}.\n\n" + prompt
 
         try:
             logger.info(f"RAGPipeline: generating answer with model {self.model}")

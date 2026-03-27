@@ -7,6 +7,7 @@ export type PipelineType = "llm" | "rag" | "agent";
 export interface InvokeRequest {
   app_id: AppId;
   user_input: string;
+  model?: string;
 }
 
 export interface TaskDetection {
@@ -14,7 +15,14 @@ export interface TaskDetection {
   needs_agent: boolean;
 }
 
+export interface UsageMetrics {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_cost: number;
+}
+
 export interface InvokeResponse {
+  request_id: string;
   app_id: AppId;
   user_input: string;
   config: Record<string, unknown>;
@@ -22,6 +30,7 @@ export interface InvokeResponse {
   pipeline_executed: PipelineType;
   output: string;
   latency_ms: number;
+  usage: UsageMetrics;
 }
 
 export interface HealthResponse {

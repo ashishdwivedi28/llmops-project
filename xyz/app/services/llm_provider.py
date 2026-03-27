@@ -1,132 +1,140 @@
 """
 LLM Provider — unified interface for all model calls.
-Uses Vertex AI for Gemini (no API key needed — uses Application Default Credentials).
-Uses Anthropic SDK for Claude (needs ANTHROPIC_API_KEY env var).
-Uses mock for testing without any credentials.
+Uses litellm to support multiple providers (Vertex AI, Anthropic, OpenAI, etc.).
+API keys are handled by litellm via standard environment variables
+(e.g., ANTHROPIC_API_KEY, OPENAI_API_KEY).
+Google Application Default Credentials (ADC) are still used for Vertex AI.
 """
 
 import logging
 import os
+import contextvars
+
+import litellm
 
 logger = logging.getLogger(__name__)
 
-# Vertex AI project and location — set these in your environment
+# Context variable to store usage across multiple calls in a single request lifecycle
+usage_context = contextvars.ContextVar(
+    "usage_context", 
+    default={"prompt_tokens": 0, "completion_tokens": 0, "total_cost": 0.0}
+)
+
+# Enable opentelemetry tracing
+litellm.success_callback = ["opentelemetry"]
+litellm.failure_callback = ["opentelemetry"]
+
+# Vertex AI project and location
 _VERTEXAI_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT", "")
 _VERTEXAI_LOCATION = os.getenv("VERTEXAI_LOCATION", "us-central1")
-_VERTEXAI_INITIALIZED = False
 
+if _VERTEXAI_PROJECT:
+    litellm.vertex_project = _VERTEXAI_PROJECT
+if _VERTEXAI_LOCATION:
+    litellm.vertex_location = _VERTEXAI_LOCATION
 
-def _init_vertexai() -> None:
-    """Initialize Vertex AI once per process. Uses ADC — no API key needed."""
-    global _VERTEXAI_INITIALIZED
-    if _VERTEXAI_INITIALIZED:
-        return
-    if not _VERTEXAI_PROJECT:
-        raise RuntimeError(
-            "GOOGLE_CLOUD_PROJECT environment variable is not set. "
-            "Set it to your GCP project ID."
-        )
-    import vertexai
-
-    vertexai.init(project=_VERTEXAI_PROJECT, location=_VERTEXAI_LOCATION)
-    _VERTEXAI_INITIALIZED = True
-    logger.info(
-        f"Vertex AI initialized: project={_VERTEXAI_PROJECT}, " f"location={_VERTEXAI_LOCATION}"
-    )
-
-
-# Map our simple model names to Vertex AI model IDs (Publisher paths)
-_GEMINI_MODEL_MAP = {
-    # Main models
-    "gemini": "gemini-2.5-flash",
-    "gemini-2.5-flash": "gemini-2.5-flash",
-    "gemini-2.0-flash": "gemini-2.0-flash-001",
-    "gemini-2.5-flash-lite": "gemini-2.5-flash-lite",
-    "gemini-3-flash-preview": "gemini-3-flash-preview",
+# Map our simple model names to litellm standard model identifiers
+# For Gemini we use the vertex_ai/ prefix to use ADC
+_MODEL_MAP = {
+    # Mock
     "mock": "mock",
-}
 
-# Cache for initialized model objects
-_GEMINI_MODELS: dict[str, object] = {}
+    # Gemini (via Vertex AI)
+    "gemini": "vertex_ai/gemini-2.5-flash",
+    "gemini-2.5-flash": "vertex_ai/gemini-2.5-flash",
+    "gemini-2.0-flash": "vertex_ai/gemini-2.0-flash-001",
+    "gemini-2.5-flash-lite": "vertex_ai/gemini-2.5-flash-lite",
+    "gemini-3-flash-preview": "vertex_ai/gemini-3-flash-preview",
+    "gemini-3-pro-preview": "vertex_ai/gemini-3-pro-preview",
+    "gemini-3.1-flash-preview": "vertex_ai/gemini-3.1-flash-preview",
+    "gemini-3.1-pro-preview": "vertex_ai/gemini-3.1-pro-preview",
+    "gemini-3.1-flash-lite-preview": "vertex_ai/gemini-3.1-flash-lite-preview",
+
+    # Claude
+    "claude": "claude-3-opus-20240229",
+    "claude-3-opus": "claude-3-opus-20240229",
+    "claude-3-sonnet": "claude-3-sonnet-20240229",
+    "claude-3-haiku": "claude-3-haiku-20240307",
+    "claude-3.5-sonnet": "claude-3-5-sonnet-20241022",
+
+    # OpenAI
+    "gpt-4o": "gpt-4o",
+    "gpt-4o-mini": "gpt-4o-mini",
+    "gpt-3.5-turbo": "gpt-3.5-turbo",
+
+    # xAI (Grok)
+    "grok-2-latest": "xai/grok-2-latest",
+    "grok-2-1212": "xai/grok-2-1212",
+
+    # Groq
+    "llama-3.3-70b-versatile": "groq/llama-3.3-70b-versatile",
+}
 
 
 def generate(prompt: str, model: str) -> str:
-    """Call the appropriate LLM provider based on model name.
+    """Call the appropriate LLM provider based on model name using litellm.
 
     Args:
         prompt: The full formatted prompt string.
-        model: One of 'mock', 'gemini', 'gemini-pro', 'gemini-flash', 'claude'.
+        model: The model alias (e.g., 'gemini', 'claude', 'gpt-4o') or a direct litellm identifier.
 
     Returns:
         The model's text response as a string.
 
     Raises:
-        ValueError: If model name is not recognized.
+        ValueError: If model name is not recognized and not a valid litellm model.
         RuntimeError: If the API call fails or credentials are missing.
     """
     if model == "mock":
         return f"[MOCK RESPONSE] Received: {prompt[:100]}..."
 
-    if model.lower().startswith("gemini"):
-        return _call_gemini_vertex(prompt, model)
+    # Resolve the model name using our map, fallback to the provided name
+    # This allows users to pass native litellm model names directly
+    model_id = _MODEL_MAP.get(model.lower(), model)
 
-    if model.lower().startswith("claude"):
-        return _call_claude(prompt)
-
-    raise ValueError(
-        f"Unknown model: '{model}'. "
-        f"Valid values: mock, gemini, gemini-pro, gemini-flash, claude"
-    )
-
-
-def _call_gemini_vertex(prompt: str, model_alias: str) -> str:
-    """Call Gemini via Vertex AI using Application Default Credentials."""
-    try:
-        _init_vertexai()
-        from vertexai.generative_models import GenerationConfig, GenerativeModel
-
-        # Default to the main flash model if alias not found
-        model_id = _GEMINI_MODEL_MAP.get(model_alias, "gemini-2.5-flash")
-
-        logger.info(f"LLMProvider: preparing to call {model_id} (alias: {model_alias})")
-
-        if model_id not in _GEMINI_MODELS:
-            logger.info(f"Initializing Vertex AI Gemini model: {model_id}")
-            _GEMINI_MODELS[model_id] = GenerativeModel(model_id)
-
-        logger.info(f"LLMProvider: calling model {model_id} with prompt length {len(prompt)}")
-        model_obj = _GEMINI_MODELS[model_id]
-
-        response = model_obj.generate_content(  # type: ignore
-            prompt,
-            generation_config=GenerationConfig(
-                temperature=0.2,
-                max_output_tokens=2048,
-            ),
+    if model_id.startswith("vertex_ai/") and not _VERTEXAI_PROJECT:
+         raise RuntimeError(
+            "GOOGLE_CLOUD_PROJECT environment variable is not set. "
+            "Set it to your GCP project ID to use Vertex AI models."
         )
+
+    logger.info(f"LLMProvider: preparing to call litellm model {model_id} (alias: {model})")
+    logger.info(f"LLMProvider: calling model {model_id} with prompt length {len(prompt)}")
+
+    try:
+        # Gemini 3.0 models currently require the region to be explicitly set to global
+        # or us-central1 depending on the exact model. Usually "global" is needed for previews.
+        kwargs = {
+            "model": model_id,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.2,
+            "max_tokens": 2048,
+        }
+
+        if "gemini-3" in model_id:
+            kwargs["vertex_location"] = "global"
+
+        response = litellm.completion(**kwargs)
+        
+        # Track usage synchronously to avoid thread contextvar issues
+        usage = dict(usage_context.get())
+        if hasattr(response, "usage") and response.usage:
+            usage["prompt_tokens"] += getattr(response.usage, "prompt_tokens", 0)
+            usage["completion_tokens"] += getattr(response.usage, "completion_tokens", 0)
+        try:
+            cost = litellm.completion_cost(response)
+            if cost is not None:
+                usage["total_cost"] += float(cost)
+        except Exception:
+            pass
+        usage_context.set(usage)
+
         logger.info("LLMProvider: generation success")
-        return response.text  # type: ignore
+        return response.choices[0].message.content  # type: ignore
 
+    except litellm.AuthenticationError as e:
+         logger.error(f"Authentication failed for model {model_id}: {e}")
+         raise RuntimeError(f"Authentication failed for {model_id}. Check your API keys or ADC.") from e
     except Exception as e:
-        logger.error(f"Vertex AI Gemini call failed: {e}")
-        raise RuntimeError(f"Gemini (Vertex AI) call failed: {str(e)}") from e
-
-
-def _call_claude(prompt: str) -> str:
-    """Call Claude via Anthropic SDK."""
-    try:
-        import anthropic
-
-        client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-        message = client.messages.create(
-            model="claude-3-opus-20240229",
-            max_tokens=2048,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return message.content[0].text  # type: ignore
-
-    except KeyError as e:
-        raise RuntimeError("ANTHROPIC_API_KEY environment variable is not set.") from e
-    except Exception as e:
-        logger.error(f"Claude API call failed: {e}")
-        raise RuntimeError(f"Claude call failed: {str(e)}") from e
+        logger.error(f"LLM API call failed for model {model_id}: {e}")
+        raise RuntimeError(f"LLM call failed for {model_id}: {str(e)}") from e

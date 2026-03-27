@@ -51,9 +51,8 @@ def get_pipeline(config: dict[str, Any], detection: dict[str, Any]) -> BasePipel
     if detection.get("needs_agent"):
         logger.info("Task detection: routing to AgentPipeline")
         return AgentPipeline(config)
-    elif detection.get("needs_rag"):
+    if detection.get("needs_rag"):
         logger.info("Task detection: routing to RAGPipeline")
         return RAGPipeline(config)
-    else:
-        logger.info("Task detection: routing to LLMPipeline (default)")
-        return LLMPipeline(config)
+    logger.info("Task detection: routing to LLMPipeline (default)")
+    return LLMPipeline(config)

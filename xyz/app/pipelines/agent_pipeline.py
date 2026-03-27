@@ -6,6 +6,7 @@ ADK manages the think → act → observe loop automatically.
 import logging
 import os
 from typing import Any
+from datetime import datetime
 
 from app.pipelines.base import BasePipeline
 from app.services import llm_provider
@@ -76,7 +77,9 @@ def list_gcs_files(bucket_name: str, prefix: str = "") -> str:
         names = [b.name for b in blobs]
         if not names:
             return f"No files found in {bucket_name}/{prefix}"
-        return f"Files in gs://{bucket_name}/{prefix}:\n" + "\n".join(f"  - {n}" for n in names)
+        return f"Files in gs://{bucket_name}/{prefix}:\n" + "\n".join(
+            f"  - {n}" for n in names
+        )
     except Exception as e:
         return f"GCS listing failed: {str(e)}"
 
@@ -101,6 +104,7 @@ def calculate(expression: str) -> str:
         return f"Calculation error: {str(e)}"
 
 
+
 # ── Pipeline class ────────────────────────────────────────────────────────────
 
 
@@ -112,10 +116,13 @@ class AgentPipeline(BasePipeline):
     def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self.max_iterations = int(config.get("max_iterations", 5))
-        self.system_prompt = config.get(
+        
+        base_prompt = config.get(
             "system_prompt",
             "You are an expert assistant. Use available tools when needed. Think step by step.",
         )
+        current_date = datetime.now().strftime("%A, %B %d, %Y")
+        self.system_prompt = f"System Info: Today is {current_date}.\n\n{base_prompt}"
 
     def _get_adk_model_name(self) -> str:
         """Map our model names to ADK model names."""
@@ -154,11 +161,21 @@ class AgentPipeline(BasePipeline):
         from google.adk.runners import Runner
         from google.adk.sessions import InMemorySessionService
 
+        from app.pipelines.callbacks import LoggingCallbacks
+
+        logging_callbacks = LoggingCallbacks()
+
         agent = Agent(
             name="llmops_agent",
             model=self._get_adk_model_name(),
             instruction=self.system_prompt,
             tools=self.TOOLS,
+            before_agent_callback=logging_callbacks.before_agent,
+            after_agent_callback=logging_callbacks.after_agent,
+            before_model_callback=logging_callbacks.before_model,
+            after_model_callback=logging_callbacks.after_model,
+            before_tool_callback=logging_callbacks.before_tool,
+            after_tool_callback=logging_callbacks.after_tool,
         )
 
         session_service = InMemorySessionService()
@@ -169,9 +186,13 @@ class AgentPipeline(BasePipeline):
             artifact_service=artifact_service,
         )
 
-        session = session_service.create_session(app_name="llmops_agent", user_id="system")
+        session = session_service.create_session(
+            app_name="llmops_agent", user_id="system"
+        )
 
-        content = genai_types.Content(role="user", parts=[genai_types.Part(text=user_input)])
+        content = genai_types.Content(
+            role="user", parts=[genai_types.Part(text=user_input)]
+        )
 
         final_response = ""
         for event in runner.run(

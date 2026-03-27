@@ -2,9 +2,11 @@
 Run this once to migrate config.json to Firestore.
 Usage: python scripts/seed_firestore_config.py --project YOUR_PROJECT_ID
 """
+
 import argparse
-from google.cloud import firestore
 from datetime import datetime, timezone
+
+from google.cloud import firestore
 
 CONFIGS = {
     "mock_app": {
@@ -72,6 +74,7 @@ PROMPTS = {
     },
 }
 
+
 def seed(project_id: str) -> None:
     db = firestore.Client(project=project_id)
     now = datetime.now(timezone.utc)
@@ -83,10 +86,13 @@ def seed(project_id: str) -> None:
 
         for version, prompt_data in PROMPTS.get(app_id, {}).items():
             prompt_ref = doc_ref.collection("prompts").document(version)
-            prompt_ref.set({**prompt_data, "version": version, "created_at": now, "score": None})
+            prompt_ref.set(
+                {**prompt_data, "version": version, "created_at": now, "score": None}
+            )
             print(f"  Prompt {version} written for {app_id}")
 
     print("Firestore seeding complete.")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -23,12 +23,14 @@ Architecture:
     ├── [experiment branch]     load_test → run_a + run_b → compare → promote
     └── [full_run]              evaluation branch → experiment branch (sequential)
 """
-import os
-import argparse
-from kfp import dsl, compiler
-import google.cloud.aiplatform as aip
 
-from pipelines.components.rag_components import ingest_document_to_rag
+import argparse
+import os
+from datetime import timezone
+
+import google.cloud.aiplatform as aip
+from kfp import compiler, dsl
+
 from pipelines.components.bigquery_components import (
     fetch_logs_to_gcs,
     write_scores_to_bigquery,
@@ -37,6 +39,7 @@ from pipelines.components.llm_components import (
     score_responses_with_judge,
     update_active_config,
 )
+from pipelines.components.rag_components import ingest_document_to_rag
 
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "")
 LOCATION = os.getenv("PIPELINE_LOCATION", "us-central1")
@@ -44,6 +47,7 @@ PIPELINE_ROOT = os.getenv("PIPELINE_ROOT_GCS", "")
 
 
 # ── Inline experiment components (self-contained) ─────────────────────────────
+
 
 @dsl.component(
     base_image="python:3.11-slim",
@@ -56,15 +60,16 @@ def load_test_set_from_gcs(
 ) -> int:
     """Load test questions from GCS JSON file. Returns number of questions."""
     import json
+
     from google.cloud import storage
-    
+
     path = gcs_test_file.replace("gs://", "")
     bucket_name, blob_name = path.split("/", 1)
-    
+
     client = storage.Client(project=project_id)
     content = client.bucket(bucket_name).blob(blob_name).download_as_text()
     questions = json.loads(content)
-    
+
     # Write to artifact URI
     out_bucket = test_data_artifact.uri.replace("gs://", "").split("/")[0]
     out_blob = "/".join(test_data_artifact.uri.replace("gs://", "").split("/")[1:])
@@ -89,24 +94,25 @@ def run_model_inference(
     system_prompt: str,
 ) -> None:
     """Run a model directly (not via serving API) on the test set.
-    
+
     This calls the LLM API directly so we can test different models
     independently of what is currently active in the serving config.
     """
     import json
     import time
+
     import google.generativeai as genai
     from google.cloud import storage
-    
+
     # Read test data
     in_uri = test_data_artifact.uri
     in_bucket = in_uri.replace("gs://", "").split("/")[0]
     in_blob = "/".join(in_uri.replace("gs://", "").split("/")[1:])
     gcs = storage.Client(project=project_id)
     questions = json.loads(gcs.bucket(in_bucket).blob(in_blob).download_as_text())
-    
+
     genai.configure(api_key=google_api_key)
-    
+
     results = []
     for item in questions[:30]:
         question = item.get("question", item.get("user_input", str(item)))
@@ -116,20 +122,24 @@ def run_model_inference(
                 system_instruction=system_prompt,
             )
             resp = model_obj.generate_content(question)
-            results.append({
-                "question": question,
-                "expected": item.get("expected", ""),
-                "model": model_name,
-                "response": resp.text,
-            })
+            results.append(
+                {
+                    "question": question,
+                    "expected": item.get("expected", ""),
+                    "model": model_name,
+                    "response": resp.text,
+                }
+            )
             time.sleep(0.2)
         except Exception as e:
-            results.append({
-                "question": question,
-                "model": model_name,
-                "response": f"ERROR: {e}",
-            })
-    
+            results.append(
+                {
+                    "question": question,
+                    "model": model_name,
+                    "response": f"ERROR: {e}",
+                }
+            )
+
     # Write results to artifact
     out_uri = results_artifact.uri
     out_bucket = out_uri.replace("gs://", "").split("/")[0]
@@ -161,33 +171,35 @@ def compare_models_and_promote(
     promotion_margin: float,
 ) -> str:
     """Judge both model result sets, write to BigQuery, promote winner."""
-    import json, time
-    from datetime import datetime, timezone
+    import json
+    import time
+    from datetime import datetime
+
     import google.generativeai as genai
-    from google.cloud import storage, bigquery, firestore
-    
+    from google.cloud import bigquery, firestore, storage
+
     gcs = storage.Client(project=project_id)
-    
+
     def read_artifact(artifact):
         uri = artifact.uri
         bucket = uri.replace("gs://", "").split("/")[0]
         blob = "/".join(uri.replace("gs://", "").split("/")[1:])
         return json.loads(gcs.bucket(bucket).blob(blob).download_as_text())
-    
+
     results_a = read_artifact(results_a_artifact)
     results_b = read_artifact(results_b_artifact)
-    
+
     genai.configure(api_key=google_api_key)
     judge = genai.GenerativeModel("gemini-2.0-pro-exp")
-    
+
     scores_a, scores_b = [], []
-    for ra, rb in zip(results_a, results_b):
+    for ra, rb in zip(results_a, results_b, strict=False):
         try:
             prompt = f"""Compare two AI responses. Return ONLY JSON: {{"score_a": 1-5, "score_b": 1-5}}
 
-Question: {ra['question'][:300]}
-Response A ({model_a_name}): {ra['response'][:500]}
-Response B ({model_b_name}): {rb['response'][:500]}"""
+Question: {ra["question"][:300]}
+Response A ({model_a_name}): {ra["response"][:500]}
+Response B ({model_b_name}): {rb["response"][:500]}"""
             resp = judge.generate_content(prompt)
             raw = resp.text.strip().strip("```json").strip("```").strip()
             d = json.loads(raw)
@@ -198,40 +210,49 @@ Response B ({model_b_name}): {rb['response'][:500]}"""
             print(f"Comparison scoring error: {e}")
             scores_a.append(3)
             scores_b.append(3)
-    
+
     avg_a = round(sum(scores_a) / len(scores_a), 2) if scores_a else 3.0
     avg_b = round(sum(scores_b) / len(scores_b), 2) if scores_b else 3.0
     margin = abs(avg_a - avg_b)
-    winner = model_a_name if avg_a > avg_b else (model_b_name if avg_b > avg_a else "tie")
-    
+    winner = (
+        model_a_name if avg_a > avg_b else (model_b_name if avg_b > avg_a else "tie")
+    )
+
     now = datetime.now(timezone.utc)
-    
+
     # Write to BigQuery
     bq = bigquery.Client(project=project_id)
-    bq.insert_rows_json(f"{project_id}.llmops.experiments", [{
-        "timestamp": now.isoformat(),
-        "experiment_id": experiment_id,
-        "app_id": app_id,
-        "model_a": model_a_name,
-        "model_b": model_b_name,
-        "avg_score_a": avg_a,
-        "avg_score_b": avg_b,
-        "winner": winner,
-        "promoted": False,
-        "sample_size": len(scores_a),
-    }])
-    
+    bq.insert_rows_json(
+        f"{project_id}.llmops.experiments",
+        [
+            {
+                "timestamp": now.isoformat(),
+                "experiment_id": experiment_id,
+                "app_id": app_id,
+                "model_a": model_a_name,
+                "model_b": model_b_name,
+                "avg_score_a": avg_a,
+                "avg_score_b": avg_b,
+                "winner": winner,
+                "promoted": False,
+                "sample_size": len(scores_a),
+            }
+        ],
+    )
+
     # Promote winner if margin is significant
     promoted = False
     if winner != "tie" and margin >= promotion_margin:
         db = firestore.Client(project=project_id)
-        db.collection("configs").document(app_id).update({
-            "active_model": winner,
-            "updated_at": now,
-        })
+        db.collection("configs").document(app_id).update(
+            {
+                "active_model": winner,
+                "updated_at": now,
+            }
+        )
         promoted = True
         print(f"Promoted model {winner} for {app_id} with margin {margin:.2f}")
-    
+
     result = (
         f"Experiment {experiment_id} complete. "
         f"Winner: {winner} (A={avg_a}, B={avg_b}, margin={margin:.2f}). "
@@ -243,6 +264,7 @@ Response B ({model_b_name}): {rb['response'][:500]}"""
 
 # ── Master Pipeline ───────────────────────────────────────────────────────────
 
+
 @dsl.pipeline(
     name="llmops-master-pipeline",
     description=(
@@ -253,23 +275,20 @@ Response B ({model_b_name}): {rb['response'][:500]}"""
 )
 def master_pipeline(
     # --- Required for all runs ---
-    trigger_type: str = "evaluation",   # rag_ingestion | evaluation | experiment | full_run
+    trigger_type: str = "evaluation",  # rag_ingestion | evaluation | experiment | full_run
     app_id: str = "default_llm",
     project_id: str = PROJECT_ID,
     pipeline_root: str = PIPELINE_ROOT,
-
     # --- For rag_ingestion ---
     gcs_document_uri: str = "",
     document_display_name: str = "uploaded_document",
     rag_location: str = "us-central1",
-
     # --- For evaluation ---
     judge_model: str = "gemini-2.0-pro-exp",
     lookback_hours: int = 24,
     sample_size: int = 50,
     eval_run_id: str = "eval_auto",
     google_api_key: str = "",
-
     # --- For experiment ---
     model_a_name: str = "gemini-2.0-flash",
     model_b_name: str = "gemini-2.0-pro-exp",
@@ -292,7 +311,7 @@ def master_pipeline(
 
     # ── Branch 2: Evaluation ─────────────────────────────────────────────────
     with dsl.If(
-        (trigger_type == "evaluation") or (trigger_type == "full_run") ,
+        (trigger_type == "evaluation") or (trigger_type == "full_run"),
         name="evaluation-branch",
     ):
         fetch_task = fetch_logs_to_gcs(
@@ -323,7 +342,7 @@ def master_pipeline(
 
     # ── Branch 3: Experiment ─────────────────────────────────────────────────
     with dsl.If(
-        (trigger_type == "experiment") or (trigger_type == "full_run") ,
+        (trigger_type == "experiment") or (trigger_type == "full_run"),
         name="experiment-branch",
     ):
         load_task = load_test_set_from_gcs(
@@ -365,6 +384,7 @@ def master_pipeline(
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
+
 def compile_pipeline(output_path: str = "master_pipeline.json") -> None:
     compiler.Compiler().compile(master_pipeline, output_path)
     print(f"Master pipeline compiled to: {output_path}")
@@ -378,9 +398,9 @@ def submit_pipeline(
 ) -> None:
     compiled_path = "/tmp/master_pipeline.json"
     compile_pipeline(compiled_path)
-    
+
     aip.init(project=project_id, location=LOCATION)
-    
+
     params = {
         "trigger_type": trigger_type,
         "app_id": app_id,
@@ -390,7 +410,7 @@ def submit_pipeline(
     }
     if extra_params:
         params.update(extra_params)
-    
+
     job = aip.PipelineJob(
         display_name=f"master-{trigger_type}-{app_id}",
         template_path=compiled_path,
@@ -398,9 +418,11 @@ def submit_pipeline(
         parameter_values=params,
         enable_caching=False,
     )
-    job.submit(service_account=f"llmops-backend-sa@{project_id}.iam.gserviceaccount.com")
+    job.submit(
+        service_account=f"llmops-backend-sa@{project_id}.iam.gserviceaccount.com"
+    )
     print(f"Master pipeline submitted. trigger_type={trigger_type}, app_id={app_id}")
-    print(f"Track at: https://console.cloud.google.com/vertex-ai/pipelines")
+    print("Track at: https://console.cloud.google.com/vertex-ai/pipelines")
 
 
 if __name__ == "__main__":
@@ -412,15 +434,19 @@ if __name__ == "__main__":
         default="evaluation",
     )
     parser.add_argument("--app_id", default="default_llm")
-    parser.add_argument("--compile", action="store_true", help="Compile only, do not submit")
-    parser.add_argument("--submit", action="store_true", help="Compile and submit to Vertex AI")
+    parser.add_argument(
+        "--compile", action="store_true", help="Compile only, do not submit"
+    )
+    parser.add_argument(
+        "--submit", action="store_true", help="Compile and submit to Vertex AI"
+    )
     parser.add_argument("--gcs_document_uri", default="")
     parser.add_argument("--gcs_test_file", default="")
     parser.add_argument("--model_a", default="gemini-2.0-flash")
     parser.add_argument("--model_b", default="gemini-2.0-pro-exp")
     parser.add_argument("--output", default="master_pipeline.json")
     args = parser.parse_args()
-    
+
     if args.compile:
         compile_pipeline(args.output)
     elif args.submit:

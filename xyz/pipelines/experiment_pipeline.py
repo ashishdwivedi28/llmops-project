@@ -14,8 +14,8 @@ Usage:
 """
 
 import os
+from datetime import timezone
 
-import google.cloud.aiplatform as aip
 from kfp import dsl
 
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "")
@@ -39,8 +39,7 @@ def load_test_set(gcs_test_file: str, project_id: str) -> str:
 
     client = storage.Client(project=project_id)
     blob = client.bucket(bucket_name).blob(blob_name)
-    content = blob.download_as_text()
-    return content  # JSON string
+    return blob.download_as_text()
 
 
 @dsl.component(
@@ -72,20 +71,24 @@ def run_model_on_test_set(
             )
             resp.raise_for_status()
             data = resp.json()
-            results.append({
-                "question": item["question"],
-                "expected": item.get("expected", ""),
-                "model": model_name,
-                "response": data.get("output", ""),
-                "latency_ms": data.get("latency_ms", 0),
-            })
+            results.append(
+                {
+                    "question": item["question"],
+                    "expected": item.get("expected", ""),
+                    "model": model_name,
+                    "response": data.get("output", ""),
+                    "latency_ms": data.get("latency_ms", 0),
+                }
+            )
         except Exception as e:
-            results.append({
-                "question": item["question"],
-                "model": model_name,
-                "response": f"ERROR: {str(e)}",
-                "latency_ms": 0,
-            })
+            results.append(
+                {
+                    "question": item["question"],
+                    "model": model_name,
+                    "response": f"ERROR: {str(e)}",
+                    "latency_ms": 0,
+                }
+            )
 
     return json.dumps(results)
 
@@ -116,14 +119,14 @@ def compare_and_score(
 
     scores_a, scores_b = [], []
 
-    for ra, rb in zip(results_a, results_b):
+    for ra, rb in zip(results_a, results_b, strict=False):
         try:
             prompt = f"""Compare two AI responses to the same question. Score each from 1-5.
 Return ONLY JSON: {{"score_a": N, "score_b": N, "winner": "a" or "b" or "tie", "reason": "..."}}
 
-Question: {ra['question']}
-Response A ({model_a_name}): {ra['response']}
-Response B ({model_b_name}): {rb['response']}"""
+Question: {ra["question"]}
+Response A ({model_a_name}): {ra["response"]}
+Response B ({model_b_name}): {rb["response"]}"""
 
             resp = judge.generate_content(prompt)
             raw = resp.text.strip().strip("```json").strip("```").strip()
@@ -139,19 +142,19 @@ Response B ({model_b_name}): {rb['response']}"""
     avg_a = round(sum(scores_a) / len(scores_a), 2) if scores_a else 0
     avg_b = round(sum(scores_b) / len(scores_b), 2) if scores_b else 0
     winner = (
-        model_a_name
-        if avg_a > avg_b
-        else (model_b_name if avg_b > avg_a else "tie")
+        model_a_name if avg_a > avg_b else (model_b_name if avg_b > avg_a else "tie")
     )
 
-    return json.dumps({
-        "model_a": model_a_name,
-        "model_b": model_b_name,
-        "avg_score_a": avg_a,
-        "avg_score_b": avg_b,
-        "winner": winner,
-        "sample_size": len(scores_a),
-    })
+    return json.dumps(
+        {
+            "model_a": model_a_name,
+            "model_b": model_b_name,
+            "avg_score_a": avg_a,
+            "avg_score_b": avg_b,
+            "winner": winner,
+            "sample_size": len(scores_a),
+        }
+    )
 
 
 @dsl.component(
@@ -167,7 +170,7 @@ def write_experiment_and_promote(
 ) -> str:
     """Write experiment results to BigQuery and promote winner if margin > threshold."""
     import json
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from google.cloud import bigquery, firestore
 
@@ -199,10 +202,12 @@ def write_experiment_and_promote(
     promoted = False
     if winner != "tie" and margin >= promotion_margin:
         db = firestore.Client(project=project_id)
-        db.collection("configs").document(app_id).update({
-            "active_model": winner,
-            "updated_at": now,
-        })
+        db.collection("configs").document(app_id).update(
+            {
+                "active_model": winner,
+                "updated_at": now,
+            }
+        )
         promoted = True
         print(f"Promoted {winner} for {app_id} (margin: {margin})")
 

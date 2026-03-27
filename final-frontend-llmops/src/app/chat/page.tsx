@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useChat } from "@/hooks/useChat";
 import { AppId } from "@/types/api";
+import { submitFeedback } from "@/lib/api";
 
 const APP_OPTIONS: { id: AppId; label: string }[] = [
   { id: "mock_app", label: "Mock App" },
@@ -10,27 +11,54 @@ const APP_OPTIONS: { id: AppId; label: string }[] = [
   { id: "code_agent", label: "Code Agent" },
 ];
 
+const MODEL_OPTIONS = [
+  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+  { id: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview" },
+  { id: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview" },
+  { id: "gemini-3.1-flash-preview", label: "Gemini 3.1 Flash Preview" },
+  { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro Preview" },
+  { id: "gemini-3.1-flash-lite-preview", label: "Gemini 3.1 Flash Lite Preview" },
+  { id: "claude-3-5-sonnet", label: "Claude 3.5 Sonnet" },
+  { id: "claude-3-opus", label: "Claude 3 Opus" },
+  { id: "gpt-4o", label: "GPT-4o" },
+  { id: "gpt-4o-mini", label: "GPT-4o Mini" },
+  { id: "grok-2-latest", label: "Grok 2 (Latest)" },
+  { id: "llama-3.3-70b-versatile", label: "Llama 3.3 (Groq)" },
+];
+
 export default function ChatPage() {
   const {
     messages,
     isLoading,
     error,
     selectedApp,
+    selectedModel,
     setSelectedApp,
+    setSelectedModel,
     sendMessage,
     clearMessages,
   } = useChat();
 
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const [inputValue, setInputValue] = useState("");
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+      const bottomRef = useRef<HTMLDivElement>(null);
+      const [inputValue, setInputValue] = useState("");
+      const [feedbackStatus, setFeedbackStatus] = useState<Record<string, "up" | "down">>({});
+  
+          const handleFeedback = async (requestId: string, score: number) => {
+            try {
+              await submitFeedback(requestId, score);
+              setFeedbackStatus((prev) => ({ ...prev, [requestId]: score > 0 ? "up" : "down" }));
+            } catch (err) {
+              console.error("Failed to submit feedback", err);
+            }
+          };
+      
+          // Auto-scroll to bottom
+          useEffect(() => {
+            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+          }, [messages, isLoading]);
+      
+          const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
     }
@@ -69,6 +97,19 @@ export default function ChatPage() {
               disabled={isLoading}
             >
               {APP_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="bg-gray-800 border border-gray-700 text-sm text-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-shadow"
+              disabled={isLoading}
+            >
+              {MODEL_OPTIONS.map((opt) => (
                 <option key={opt.id} value={opt.id}>
                   {opt.label}
                 </option>
@@ -152,31 +193,75 @@ export default function ChatPage() {
                     {msg.metadata.model}
                   </span>
 
-                  {/* Latency Badge */}
-                  <span className="px-2 py-0.5 text-[10px] rounded-full bg-green-900/50 text-green-400 border border-green-800">
-                    {msg.metadata.latencyMs.toFixed(0)}ms
-                  </span>
-
-                  {/* Task Chips */}
-                  {msg.metadata.taskDetection.needs_rag && (
+                                      {/* Latency Badge */}
+                                      <span className="px-2 py-0.5 text-[10px] rounded-full bg-green-900/50 text-green-400 border border-green-800">
+                                        {msg.metadata.latencyMs.toFixed(0)}ms
+                                      </span>
+                  
+                                      {/* Usage & Cost Badges */}
+                                      {msg.metadata.usage && (
+                                        <>
+                                          <span className="px-2 py-0.5 text-[10px] rounded-full bg-blue-900/50 text-blue-400 border border-blue-800">
+                                            {msg.metadata.usage.prompt_tokens + msg.metadata.usage.completion_tokens} tokens
+                                          </span>
+                                          <span className="px-2 py-0.5 text-[10px] rounded-full bg-amber-900/50 text-amber-400 border border-amber-800">
+                                            ${msg.metadata.usage.total_cost.toFixed(6)}
+                                          </span>
+                                        </>
+                                      )}
+                  
+                                      {/* Task Chips */}                  {msg.metadata.taskDetection.needs_rag && (
                     <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-yellow-600/20 text-yellow-500 border border-yellow-600/40">
                       RAG
                     </span>
                   )}
-                  {msg.metadata.taskDetection.needs_agent && (
-                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-600/20 text-red-500 border border-red-600/40">
-                      AGENT
-                    </span>
-                  )}
-
-                  <span className="text-[10px] text-gray-600 ml-1">
-                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              )}
-            </div>
-          ))}
-
+                                      {msg.metadata.taskDetection.needs_agent && (
+                                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-600/20 text-red-500 border border-red-600/40">
+                                          AGENT
+                                        </span>
+                                      )}
+                  
+                                      <span className="text-[10px] text-gray-600 ml-1">
+                                        {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                  
+                                      {/* Feedback Buttons */}
+                                      {msg.metadata.requestId && (
+                                        <div className="flex items-center gap-1 ml-auto">
+                                          <button
+                                            onClick={() => handleFeedback(msg.metadata!.requestId!, 1)}
+                                            disabled={!!feedbackStatus[msg.metadata.requestId]}
+                                            className={`p-1 rounded-md transition-colors ${
+                                              feedbackStatus[msg.metadata.requestId] === "up"
+                                                ? "text-green-500 bg-green-500/10"
+                                                : "text-gray-500 hover:text-green-400 hover:bg-gray-800"
+                                            }`}
+                                            title="Helpful"
+                                          >
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                                            </svg>
+                                          </button>
+                                          <button
+                                            onClick={() => handleFeedback(msg.metadata!.requestId!, -1)}
+                                            disabled={!!feedbackStatus[msg.metadata.requestId]}
+                                            className={`p-1 rounded-md transition-colors ${
+                                              feedbackStatus[msg.metadata.requestId] === "down"
+                                                ? "text-red-500 bg-red-500/10"
+                                                : "text-gray-500 hover:text-red-400 hover:bg-gray-800"
+                                            }`}
+                                            title="Not helpful"
+                                          >
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
+                                            </svg>
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
           {/* Loading Indicator */}
           {isLoading && (
             <div className="flex justify-start">

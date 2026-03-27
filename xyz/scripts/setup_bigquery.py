@@ -2,10 +2,13 @@
 Run this once to create all BigQuery tables.
 Usage: python scripts/setup_bigquery.py --project YOUR_PROJECT_ID
 """
+
 import argparse
+
 from google.cloud import bigquery
 
 SCHEMA_REQUESTS = [
+    bigquery.SchemaField("request_id", "STRING", mode="REQUIRED"),
     bigquery.SchemaField("timestamp", "TIMESTAMP", mode="REQUIRED"),
     bigquery.SchemaField("app_id", "STRING", mode="REQUIRED"),
     bigquery.SchemaField("session_id", "STRING", mode="NULLABLE"),
@@ -21,6 +24,24 @@ SCHEMA_REQUESTS = [
     bigquery.SchemaField("needs_agent", "BOOLEAN", mode="NULLABLE"),
     bigquery.SchemaField("retrieved_chunks", "INTEGER", mode="NULLABLE"),
     bigquery.SchemaField("guardrail_pass", "BOOLEAN", mode="NULLABLE"),
+    bigquery.SchemaField("prompt_tokens", "INTEGER", mode="NULLABLE"),
+    bigquery.SchemaField("completion_tokens", "INTEGER", mode="NULLABLE"),
+    bigquery.SchemaField("total_cost", "FLOAT", mode="NULLABLE"),
+]
+
+SCHEMA_FEEDBACK = [
+    bigquery.SchemaField("request_id", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("timestamp", "TIMESTAMP", mode="REQUIRED"),
+    bigquery.SchemaField("score", "INTEGER", mode="REQUIRED"),
+    bigquery.SchemaField("comment", "STRING", mode="NULLABLE"),
+]
+
+SCHEMA_EVALUATIONS_NEW = [
+    bigquery.SchemaField("request_id", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("timestamp", "TIMESTAMP", mode="REQUIRED"),
+    bigquery.SchemaField("criteria", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("score", "FLOAT", mode="REQUIRED"),
+    bigquery.SchemaField("reasoning", "STRING", mode="NULLABLE"),
 ]
 
 SCHEMA_EVALUATION = [
@@ -54,18 +75,21 @@ SCHEMA_EXPERIMENTS = [
     bigquery.SchemaField("sample_size", "INTEGER", mode="NULLABLE"),
 ]
 
+
 def create_tables(project_id: str) -> None:
     client = bigquery.Client(project=project_id)
     dataset_id = f"{project_id}.llmops"
 
     # Create dataset
     dataset = bigquery.Dataset(dataset_id)
-    dataset.location = "asia-south1"
+    dataset.location = "us-central1"
     client.create_dataset(dataset, exists_ok=True)
     print(f"Dataset {dataset_id} ready.")
 
     tables = {
         "requests": SCHEMA_REQUESTS,
+        "feedback": SCHEMA_FEEDBACK,
+        "evaluations": SCHEMA_EVALUATIONS_NEW,
         "evaluation_results": SCHEMA_EVALUATION,
         "experiments": SCHEMA_EXPERIMENTS,
     }
@@ -75,11 +99,11 @@ def create_tables(project_id: str) -> None:
         table = bigquery.Table(table_ref, schema=schema)
         if table_name == "requests":
             table.time_partitioning = bigquery.TimePartitioning(
-                type_=bigquery.TimePartitioningType.DAY,
-                field="timestamp"
+                type_=bigquery.TimePartitioningType.DAY, field="timestamp"
             )
         client.create_table(table, exists_ok=True)
         print(f"Table {table_ref} ready.")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -20,7 +20,9 @@ class TestOrchestrator:
         pipeline = get_pipeline(rag_config, mock_detection_llm)
         assert isinstance(pipeline, RAGPipeline)
 
-    def test_explicit_agent_pipeline_from_config(self, agent_config, mock_detection_llm):
+    def test_explicit_agent_pipeline_from_config(
+        self, agent_config, mock_detection_llm
+    ):
         """Config pipeline=agent overrides task detection."""
         pipeline = get_pipeline(agent_config, mock_detection_llm)
         assert isinstance(pipeline, AgentPipeline)
@@ -31,7 +33,9 @@ class TestOrchestrator:
         pipeline = get_pipeline(mock_config, mock_detection_rag)
         assert isinstance(pipeline, RAGPipeline)
 
-    def test_auto_routes_to_agent_when_needs_agent(self, mock_config, mock_detection_agent):
+    def test_auto_routes_to_agent_when_needs_agent(
+        self, mock_config, mock_detection_agent
+    ):
         """Auto mode: needs_agent=True → AgentPipeline (agent > rag priority)."""
         mock_config["pipeline"] = "auto"
         pipeline = get_pipeline(mock_config, mock_detection_agent)
@@ -43,7 +47,9 @@ class TestOrchestrator:
         pipeline = get_pipeline(mock_config, mock_detection_llm)
         assert isinstance(pipeline, LLMPipeline)
 
-    def test_unknown_pipeline_in_config_falls_back_to_auto(self, mock_config, mock_detection_rag):
+    def test_unknown_pipeline_in_config_falls_back_to_auto(
+        self, mock_config, mock_detection_rag
+    ):
         """Unknown pipeline type falls through to auto mode."""
         mock_config["pipeline"] = "unknown_pipeline_type"
         pipeline = get_pipeline(mock_config, mock_detection_rag)

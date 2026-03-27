@@ -42,6 +42,16 @@ export function ChatBubble({ message }: { message: ChatMessage }) {
             <span className="rounded-full border border-black/10 bg-foreground/5 px-2 py-1">
               Agent: {message.metadata?.taskDetection?.needs_agent ? "yes" : "no"}
             </span>
+            {message.metadata?.usage && (
+              <>
+                <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-blue-400">
+                  tokens: {message.metadata.usage.prompt_tokens + message.metadata.usage.completion_tokens}
+                </span>
+                <span className="rounded-full border border-green-500/20 bg-green-500/10 px-2 py-1 text-green-400">
+                  cost: ${message.metadata.usage.total_cost.toFixed(6)}
+                </span>
+              </>
+            )}
           </div>
         ) : null}
       </div>

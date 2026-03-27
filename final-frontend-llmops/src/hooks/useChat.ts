@@ -14,10 +14,15 @@ export function useChat() {
     isLoading: false,
     error: null,
     selectedApp: "default_llm",
+    selectedModel: "gemini-2.5-flash",
   });
 
   const setSelectedApp = useCallback((app: AppId) => {
     setState((prev) => ({ ...prev, selectedApp: app, error: null }));
+  }, []);
+
+  const setSelectedModel = useCallback((model: string) => {
+    setState((prev) => ({ ...prev, selectedModel: model, error: null }));
   }, []);
 
   const sendMessage = useCallback(
@@ -39,7 +44,7 @@ export function useChat() {
       }));
 
       try {
-        const response = await invoke(state.selectedApp, userInput.trim());
+        const response = await invoke(state.selectedApp, userInput.trim(), state.selectedModel);
 
         const model =
           typeof response.config?.model === "string"
@@ -52,11 +57,13 @@ export function useChat() {
           content: response.output,
           timestamp: new Date(),
           metadata: {
+            requestId: response.request_id,
             pipelineExecuted: response.pipeline_executed,
             taskDetection: response.task_detection,
             model,
             latencyMs: response.latency_ms,
             appId: response.app_id,
+            usage: response.usage,
           },
         };
 
@@ -84,7 +91,7 @@ export function useChat() {
         }));
       }
     },
-    [state.selectedApp]
+    [state.selectedApp, state.selectedModel]
   );
 
   const clearMessages = useCallback(() => {
@@ -96,7 +103,9 @@ export function useChat() {
     isLoading: state.isLoading,
     error: state.error,
     selectedApp: state.selectedApp,
+    selectedModel: state.selectedModel,
     setSelectedApp,
+    setSelectedModel,
     sendMessage,
     clearMessages,
   };

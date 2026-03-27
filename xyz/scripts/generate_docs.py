@@ -5,6 +5,7 @@ Run after each coding section to capture what was built.
 Usage:
   python scripts/generate_docs.py --section \"Run A: BigQuery + Firestore\"
 """
+
 import argparse
 import json
 import subprocess
@@ -22,7 +23,9 @@ def get_git_diff_summary() -> str:
     try:
         result = subprocess.run(
             ["git", "diff", "--name-status", "HEAD"],
-            capture_output=True, text=True, cwd=Path(__file__).parent.parent
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent.parent,
         )
         return result.stdout.strip() or "No uncommitted changes."
     except Exception:
@@ -33,10 +36,18 @@ def get_test_coverage_summary() -> str:
     """Run pytest with coverage and return summary."""
     try:
         result = subprocess.run(
-            ["python", "-m", "pytest", "--cov=app", "--cov-report=term-missing",
-             "-q", "--no-header"],
-            capture_output=True, text=True,
-            cwd=Path(__file__).parent.parent
+            [
+                "python",
+                "-m",
+                "pytest",
+                "--cov=app",
+                "--cov-report=term-missing",
+                "-q",
+                "--no-header",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent.parent,
         )
         lines = result.stdout.split("\n")
         # Return last 10 lines (summary)
@@ -49,8 +60,10 @@ def export_openapi_schema() -> None:
     """Export FastAPI OpenAPI schema to docs/api/openapi.json."""
     try:
         import sys
+
         sys.path.insert(0, str(Path(__file__).parent.parent))
         from app.main import app
+
         schema = app.openapi()
         out = API_DOCS_DIR / "openapi.json"
         out.write_text(json.dumps(schema, indent=2))
@@ -73,7 +86,7 @@ def generate_decision_doc(section: str, notes: str = "") -> Path:
 Generated: {now.isoformat()}
 
 ## What Was Built
-{notes or 'See file changes below.'}
+{notes or "See file changes below."}
 
 ## Files Changed
 ```
@@ -95,8 +108,12 @@ See the next Run prompt in the llmops-prompts/ folder.
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--section", required=True, help="Section name, e.g. 'Run A: BigQuery'")
-    parser.add_argument("--notes", default="", help="Optional notes about what was built")
+    parser.add_argument(
+        "--section", required=True, help="Section name, e.g. 'Run A: BigQuery'"
+    )
+    parser.add_argument(
+        "--notes", default="", help="Optional notes about what was built"
+    )
     args = parser.parse_args()
 
     export_openapi_schema()
