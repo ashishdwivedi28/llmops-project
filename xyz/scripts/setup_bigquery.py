@@ -82,7 +82,7 @@ def create_tables(project_id: str) -> None:
 
     # Create dataset
     dataset = bigquery.Dataset(dataset_id)
-    dataset.location = "asia-south1"
+    dataset.location = "us-central1"
     client.create_dataset(dataset, exists_ok=True)
     print(f"Dataset {dataset_id} ready.")
 

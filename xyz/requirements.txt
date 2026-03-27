@@ -14,4 +14,6 @@ opentelemetry-exporter-gcp-logging>=1.9.0a0
 opentelemetry-exporter-otlp-proto-grpc==1.37.0
 opentelemetry-instrumentation-google-genai>=0.4b0
 opentelemetry-instrumentation-logging>=0.58b0
-litellm>=1.0.0
+# Pinning litellm to known safe version to avoid supply chain attack in 1.82.8
+litellm==1.82.6
+pyyaml>=6.0.1

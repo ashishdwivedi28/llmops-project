@@ -6,6 +6,7 @@ ADK manages the think → act → observe loop automatically.
 import logging
 import os
 from typing import Any
+from datetime import datetime
 
 from app.pipelines.base import BasePipeline
 from app.services import llm_provider
@@ -103,6 +104,7 @@ def calculate(expression: str) -> str:
         return f"Calculation error: {str(e)}"
 
 
+
 # ── Pipeline class ────────────────────────────────────────────────────────────
 
 
@@ -114,10 +116,13 @@ class AgentPipeline(BasePipeline):
     def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self.max_iterations = int(config.get("max_iterations", 5))
-        self.system_prompt = config.get(
+        
+        base_prompt = config.get(
             "system_prompt",
             "You are an expert assistant. Use available tools when needed. Think step by step.",
         )
+        current_date = datetime.now().strftime("%A, %B %d, %Y")
+        self.system_prompt = f"System Info: Today is {current_date}.\n\n{base_prompt}"
 
     def _get_adk_model_name(self) -> str:
         """Map our model names to ADK model names."""

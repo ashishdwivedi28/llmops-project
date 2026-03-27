@@ -44,21 +44,21 @@ export default function ChatPage() {
       const [inputValue, setInputValue] = useState("");
       const [feedbackStatus, setFeedbackStatus] = useState<Record<string, "up" | "down">>({});
   
-      const handleFeedback = async (requestId: string, score: number) => {
-        try {
-          await submitFeedback(requestId, score);
-          setFeedbackStatus((prev) => ({ ...prev, [requestId]: score > 0 ? "up" : "down" }));
-        } catch (err) {
-          console.error("Failed to submit feedback", err);
-        }
-      };
-  
-      // Auto-scroll to bottom  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+          const handleFeedback = async (requestId: string, score: number) => {
+            try {
+              await submitFeedback(requestId, score);
+              setFeedbackStatus((prev) => ({ ...prev, [requestId]: score > 0 ? "up" : "down" }));
+            } catch (err) {
+              console.error("Failed to submit feedback", err);
+            }
+          };
+      
+          // Auto-scroll to bottom
+          useEffect(() => {
+            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+          }, [messages, isLoading]);
+      
+          const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
     }

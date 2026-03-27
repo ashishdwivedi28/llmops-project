@@ -1,18 +1,9 @@
 import json
 import logging
 import os
+from app.services.prompt_manager import prompt_manager
 
 logger = logging.getLogger(__name__)
-
-DETECTION_PROMPT = """Analyze this user request and classify it. Return ONLY valid JSON, nothing else.
-
-User request: "{user_input}"
-
-Rules:
-- needs_rag: true if the user is asking about specific documents, files, policies, or internal data
-- needs_agent: true if the user needs multi-step reasoning, code execution, or tool use
-
-Return exactly: {{"needs_rag": true/false, "needs_agent": true/false}}"""
 
 _CLASSIFIER_MODEL = None
 
@@ -34,7 +25,8 @@ def detect(user_input: str, model: str) -> dict:
         # while defaulting to a fast/cheap model (like gemini-2.5-flash) for classification.
         from app.services import llm_provider
         
-        prompt = DETECTION_PROMPT.format(user_input=user_input)
+        prompt_template = prompt_manager.get_prompt("task_detector")
+        prompt = prompt_template.format(user_input=user_input)
 
         logger.info(f"TaskDetector: analyzing input with fast classifier model (defaulting to gemini-2.5-flash)")
         

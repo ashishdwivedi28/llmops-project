@@ -1,0 +1,18 @@
+name: task_detector
+description: Classifies user intent to determine pipeline routing.
+active_version: v1
+versions:
+  v1:
+    description: Initial classification prompt
+    template: |
+      Analyze this user request and classify it. Return ONLY valid JSON, nothing else.
+
+      User request: "{user_input}"
+
+      Rules:
+      - needs_rag: true if the user is asking about specific documents, files, policies, or internal data
+      - needs_agent: true if the user needs multi-step reasoning, code execution, or tool use
+
+      Return exactly: {{"needs_rag": true/false, "needs_agent": true/false}}
+    variables:
+      - user_input

@@ -119,6 +119,11 @@ class RAGPipeline(BasePipeline):
         else:
             prompt = self.prompt_template.format(context=context, user_input=user_input)
 
+        # Inject current date
+        from datetime import datetime
+        current_date = datetime.now().strftime("%A, %B %d, %Y")
+        prompt = f"System Info: Today is {current_date}.\n\n" + prompt
+
         try:
             logger.info(f"RAGPipeline: generating answer with model {self.model}")
             response = llm_provider.generate(prompt, self.model)

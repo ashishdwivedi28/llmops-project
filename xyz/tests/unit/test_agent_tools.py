@@ -265,3 +265,4 @@ class TestCalculatorTool:
 
         # Should handle gracefully, not crash
         assert isinstance(result, str)
+

@@ -11,6 +11,7 @@ from app.services.logging_service import log_request, log_feedback
 from app.services.task_detector import detect
 from app.services.llm_provider import usage_context
 from app.services.evaluation_service import evaluate_response_async
+from app.services.guardrails_service import guardrails
 from utils.config_loader import load_config
 
 logger = logging.getLogger(__name__)
@@ -74,6 +75,12 @@ async def invoke_pipeline(request: InvokeRequest, background_tasks: BackgroundTa
     usage_context.set({"prompt_tokens": 0, "completion_tokens": 0, "total_cost": 0.0})
 
     try:
+        # 0. Guardrails: Input validation
+        is_safe, error_msg = guardrails.validate_input(request.user_input, model=request.model or "gemini-2.5-flash")
+        if not is_safe:
+            logger.warning(f"Guardrails: blocked input for {request_id}: {error_msg}")
+            raise HTTPException(status_code=400, detail=error_msg)
+
         # 1. Load config
         try:
             config = load_config(request.app_id)
@@ -127,6 +134,9 @@ async def invoke_pipeline(request: InvokeRequest, background_tasks: BackgroundTa
             else:
                 output_text = result
                 logger.info("Pipeline returned string result.")
+
+            # 4.1 Guardrails: Filter output
+            output_text = guardrails.filter_output(output_text)
         except Exception as e:
             logger.error(f"Pipeline execution failed: {e}")
             raise HTTPException(

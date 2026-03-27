@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 from app.pipelines.base import BasePipeline
 from app.services import llm_provider
@@ -14,7 +15,11 @@ class LLMPipeline(BasePipeline):
         prompt_template = self.config.get("prompt_template", "{user_input}")
         logger.info(f"LLMPipeline: preparing prompt. Model: {self.model}")
 
-        prompt = prompt_template.format(user_input=user_input)
+        # Inject current date for accurate temporal context
+        current_date = datetime.now().strftime("%A, %B %d, %Y")
+        system_context = f"System Info: Today is {current_date}.\n\n"
+
+        prompt = system_context + prompt_template.format(user_input=user_input)
         logger.debug(f"LLMPipeline prompt: {prompt[:100]}...")
 
         response = llm_provider.generate(prompt, self.model)
