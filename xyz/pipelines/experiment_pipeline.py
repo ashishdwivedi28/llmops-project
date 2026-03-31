@@ -18,6 +18,8 @@ from datetime import timezone
 
 from kfp import dsl
 
+UTC = timezone.utc
+
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "")
 LOCATION = os.getenv("PIPELINE_LOCATION", "us-central1")
 PIPELINE_ROOT = os.getenv("PIPELINE_ROOT_GCS", "")
@@ -175,7 +177,7 @@ def write_experiment_and_promote(
     from google.cloud import bigquery, firestore
 
     comparison = json.loads(comparison_json)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Write to BigQuery
     bq = bigquery.Client(project=project_id)

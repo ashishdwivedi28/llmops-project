@@ -1,8 +1,10 @@
 """Reusable KFP components for RAG operations."""
 
-from datetime import timezone
+from datetime import datetime, timezone
 
 from kfp import dsl
+
+UTC = timezone.utc
 
 
 @dsl.component(
@@ -57,7 +59,6 @@ def ingest_document_to_rag(
     )
 
     # Log ingestion to Firestore
-    from datetime import datetime
 
     db.collection("ingestion_log").add(
         {
@@ -65,7 +66,7 @@ def ingest_document_to_rag(
             "gcs_uri": gcs_uri,
             "corpus_id": corpus_id,
             "status": "success",
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
         }
     )
 

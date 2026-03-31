@@ -1,8 +1,12 @@
 """Reusable KFP components for BigQuery operations."""
 
-from datetime import timezone
+import json
+from datetime import datetime, timezone
 
+from google.cloud import bigquery, storage
 from kfp import dsl
+
+UTC = timezone.utc
 
 
 @dsl.component(
@@ -23,9 +27,7 @@ def fetch_logs_to_gcs(
 
     Uses GCS artifact output to handle large log sets without KFP parameter limits.
     """
-    import json
 
-    from google.cloud import bigquery, storage
 
     client = bigquery.Client(project=project_id)
     query = f"""
@@ -71,8 +73,6 @@ def write_scores_to_bigquery(
     app_id: str,
 ) -> float:
     """Read scored rows from GCS and write to BigQuery evaluation_results. Returns avg score."""
-    import json
-    from datetime import datetime
 
     from google.cloud import bigquery, storage
 
@@ -91,7 +91,7 @@ def write_scores_to_bigquery(
 
     bq = bigquery.Client(project=project_id)
     table = f"{project_id}.llmops.evaluation_results"
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     rows = [
         {

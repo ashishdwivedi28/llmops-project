@@ -8,6 +8,8 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
+UTC = timezone.utc
+
 logger = logging.getLogger(__name__)
 
 _BQ_CLIENT = None
@@ -21,7 +23,7 @@ def _get_bq_client() -> tuple[Any, str]:
             _BQ_CLIENT = bigquery.Client(project=project)
         except Exception as e:
             logger.warning(f"BigQuery init failed: {e}. Using stdout logging.")
-    
+
     return _BQ_CLIENT, project or ""
 
 
@@ -87,7 +89,7 @@ def log_evaluation(request_id: str, criteria: str, score: float, reasoning: str)
         "score": score,
         "reasoning": reasoning[:2000],
     }
-    
+
     client, project = _get_bq_client()
     if client and project:
         try:
@@ -110,7 +112,7 @@ def log_feedback(request_id: str, score: int, comment: str | None) -> None:
         "score": score,
         "comment": (comment[:1000] if comment else None),
     }
-    
+
     client, project = _get_bq_client()
     if client and project:
         try:

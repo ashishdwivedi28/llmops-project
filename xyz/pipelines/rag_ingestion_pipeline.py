@@ -16,6 +16,8 @@ from datetime import timezone
 import google.cloud.aiplatform as aip
 from kfp import dsl
 
+UTC = timezone.utc
+
 logger = logging.getLogger(__name__)
 
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "")
@@ -107,7 +109,7 @@ def update_ingestion_log(
             "gcs_uri": gcs_uri,
             "corpus_id": corpus_id,
             "status": status,
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
         }
     )
 

@@ -2,7 +2,7 @@
 # Ruff Configuration - Formatting and Linting
 # =============================================================================
 [tool.ruff]
-target-version = "py311"
+target-version = "py310"
 line-length = 88
 fix = true
 extend-exclude = ["notebooks", "../agent-foundation-main*"]
@@ -39,7 +39,7 @@ select = [
 # Mypy Configuration - Type Checking
 # =============================================================================
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

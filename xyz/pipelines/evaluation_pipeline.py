@@ -17,6 +17,8 @@ from datetime import timezone
 import google.cloud.aiplatform as aip
 from kfp import dsl
 
+UTC = timezone.utc
+
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "")
 LOCATION = os.getenv("PIPELINE_LOCATION", "us-central1")
 PIPELINE_ROOT = os.getenv("PIPELINE_ROOT_GCS", "")
@@ -169,7 +171,7 @@ def write_scores_to_bigquery(
 
     client = bigquery.Client(project=project_id)
     table = f"{project_id}.llmops.evaluation_results"
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     rows = []
     for row in scored:
@@ -188,7 +190,7 @@ def write_scores_to_bigquery(
                 "relevance_score": row.get("relevance_score"),
                 "completeness_score": row.get("completeness_score"),
                 "avg_score": row.get("avg_score"),
-                "judge_model": row.get("judge_model", ""),
+                "judge_model": row.get("judge_model", "unknown"),
                 "judge_explanation": row.get("judge_explanation", "")[:1000],
             }
         )
@@ -252,7 +254,7 @@ def update_config_if_needed(
         config_ref.update(
             {
                 "active_prompt_version": best_version,
-                "updated_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(UTC),
             }
         )
         # Mark old as retired, new as active

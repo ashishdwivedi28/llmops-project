@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 
 from google.cloud import firestore
 
+UTC = timezone.utc
+
 CONFIGS = {
     "mock_app": {
         "pipeline": "llm",

@@ -1,8 +1,10 @@
 """Reusable KFP components for LLM operations (judge scoring, model calls)."""
 
-from datetime import timezone
+from datetime import datetime, timezone
 
 from kfp import dsl
+
+UTC = timezone.utc
 
 
 @dsl.component(
@@ -125,7 +127,6 @@ def update_active_config(
     project_id: str,
 ) -> str:
     """Promote best candidate prompt if avg_score < threshold. Returns action taken."""
-    from datetime import datetime
 
     from google.cloud import firestore
 
@@ -160,7 +161,7 @@ def update_active_config(
             best_version = p.id
 
     if best_version:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         config_ref.update({"active_prompt_version": best_version, "updated_at": now})
         config_ref.collection("prompts").document(current_version).update(
             {"status": "retired"}

@@ -12,6 +12,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+UTC = timezone.utc
+
 DOCS_DIR = Path(__file__).parent.parent / "docs" / "decisions"
 API_DOCS_DIR = Path(__file__).parent.parent / "docs" / "api"
 DOCS_DIR.mkdir(parents=True, exist_ok=True)

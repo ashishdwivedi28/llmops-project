@@ -41,6 +41,10 @@ from pipelines.components.llm_components import (
 )
 from pipelines.components.rag_components import ingest_document_to_rag
 
+UTC = timezone.utc
+
+
+
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "")
 LOCATION = os.getenv("PIPELINE_LOCATION", "us-central1")
 PIPELINE_ROOT = os.getenv("PIPELINE_ROOT_GCS", "")
@@ -218,7 +222,7 @@ Response B ({model_b_name}): {rb["response"][:500]}"""
         model_a_name if avg_a > avg_b else (model_b_name if avg_b > avg_a else "tie")
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Write to BigQuery
     bq = bigquery.Client(project=project_id)
