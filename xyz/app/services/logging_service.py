@@ -43,7 +43,7 @@ def log_request(
 ) -> None:
     """Log a completed invoke request to BigQuery."""
     usage = usage or {}
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     row = {
         "request_id": request_id,
         "timestamp": now.isoformat(),
@@ -81,7 +81,7 @@ def log_request(
 
 def log_evaluation(request_id: str, criteria: str, score: float, reasoning: str) -> None:
     """Log an automated evaluation of a request."""
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     row = {
         "request_id": request_id,
         "timestamp": now.isoformat(),
@@ -105,7 +105,7 @@ def log_evaluation(request_id: str, criteria: str, score: float, reasoning: str)
 
 def log_feedback(request_id: str, score: int, comment: str | None) -> None:
     """Log user feedback for a request."""
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     row = {
         "request_id": request_id,
         "timestamp": now.isoformat(),

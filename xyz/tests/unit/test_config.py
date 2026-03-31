@@ -1,8 +1,11 @@
 import os
-import pytest
 from unittest.mock import patch
+
+import pytest
 from pydantic import ValidationError
+
 from utils.config import ServerEnv, initialize_environment
+
 
 def test_server_env_validation_success():
     data = {
@@ -29,10 +32,10 @@ def test_server_env_fallback():
 def test_server_env_invalid_origins():
     with pytest.raises(ValidationError):
         ServerEnv(GOOGLE_CLOUD_PROJECT="p", ALLOW_ORIGINS="not-json")
-    
+
     with pytest.raises(ValidationError):
         ServerEnv(GOOGLE_CLOUD_PROJECT="p", ALLOW_ORIGINS='{"not": "a list"}')
-        
+
     with pytest.raises(ValidationError):
         ServerEnv(GOOGLE_CLOUD_PROJECT="p", ALLOW_ORIGINS="[]")
 

@@ -27,7 +27,6 @@ Architecture:
 import argparse
 import os
 from datetime import timezone
-UTC = timezone.utc
 
 import google.cloud.aiplatform as aip
 from kfp import compiler, dsl
@@ -41,6 +40,10 @@ from pipelines.components.llm_components import (
     update_active_config,
 )
 from pipelines.components.rag_components import ingest_document_to_rag
+
+UTC = timezone.utc
+
+
 
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "")
 LOCATION = os.getenv("PIPELINE_LOCATION", "us-central1")

@@ -10,8 +10,9 @@ import argparse
 import json
 import subprocess
 from datetime import datetime, timezone
-UTC = timezone.utc
 from pathlib import Path
+
+UTC = timezone.utc
 
 DOCS_DIR = Path(__file__).parent.parent / "docs" / "decisions"
 API_DOCS_DIR = Path(__file__).parent.parent / "docs" / "api"
@@ -75,7 +76,7 @@ def export_openapi_schema() -> None:
 
 def generate_decision_doc(section: str, notes: str = "") -> Path:
     """Generate a decision document for this coding session."""
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     slug = section.lower().replace(" ", "_").replace(":", "").replace("/", "_")[:50]
     filename = f"{now.strftime('%Y%m%d')}_{slug}.md"
     out = DOCS_DIR / filename

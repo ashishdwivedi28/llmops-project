@@ -12,10 +12,11 @@ import argparse
 import logging
 import os
 from datetime import timezone
-UTC = timezone.utc
 
 import google.cloud.aiplatform as aip
 from kfp import dsl
+
+UTC = timezone.utc
 
 logger = logging.getLogger(__name__)
 

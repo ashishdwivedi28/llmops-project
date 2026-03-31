@@ -1,9 +1,10 @@
 """Reusable KFP components for LLM operations (judge scoring, model calls)."""
 
-from datetime import timezone
-UTC = timezone.utc
+from datetime import timezone, datetime
 
 from kfp import dsl
+
+UTC = timezone.utc
 
 
 @dsl.component(
@@ -126,7 +127,6 @@ def update_active_config(
     project_id: str,
 ) -> str:
     """Promote best candidate prompt if avg_score < threshold. Returns action taken."""
-    from datetime import datetime
 
     from google.cloud import firestore
 

@@ -13,10 +13,11 @@ Deploy with:
 
 import os
 from datetime import timezone
-UTC = timezone.utc
 
 import google.cloud.aiplatform as aip
 from kfp import dsl
+
+UTC = timezone.utc
 
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "")
 LOCATION = os.getenv("PIPELINE_LOCATION", "us-central1")
@@ -189,7 +190,7 @@ def write_scores_to_bigquery(
                 "relevance_score": row.get("relevance_score"),
                 "completeness_score": row.get("completeness_score"),
                 "avg_score": row.get("avg_score"),
-                "judge_model": row.get("judge_model", ""),
+                "judge_model": row.get("judge_model", "unknown"),
                 "judge_explanation": row.get("judge_explanation", "")[:1000],
             }
         )

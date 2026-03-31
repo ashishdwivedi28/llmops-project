@@ -15,9 +15,10 @@ Usage:
 
 import os
 from datetime import timezone
-UTC = timezone.utc
 
 from kfp import dsl
+
+UTC = timezone.utc
 
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "")
 LOCATION = os.getenv("PIPELINE_LOCATION", "us-central1")
