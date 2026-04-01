@@ -72,3 +72,9 @@ variable "adk_suppress_experimental_feature_warnings" {
   nullable    = true
   default     = null
 }
+
+variable "additional_allowed_origins" {
+  description = "Additional CORS origins to allow (e.g., frontend Cloud Run URL)"
+  type        = list(string)
+  default     = []
+}
