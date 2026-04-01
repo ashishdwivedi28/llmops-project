@@ -41,7 +41,7 @@ permissions:
 
 concurrency:
   group: ci-cd-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true  # Cancel in-progress runs for both PRs and pushes to prevent state conflicts
 
 jobs:
   meta:
