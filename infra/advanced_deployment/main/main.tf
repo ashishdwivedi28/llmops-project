@@ -215,13 +215,24 @@ resource "google_cloud_run_v2_service" "app" {
       # account for networking setup lag between process bind and external reachability.
       startup_probe {
         http_get {
-          path = "/readiness"
+          path = "/startup"
           port = 9090
         }
-        initial_delay_seconds = 20 # Increased from 10 to allow more startup time
-        period_seconds        = 15 # Increased from 10 to reduce check frequency
-        failure_threshold     = 8  # Increased from 5 to allow more retries
-        timeout_seconds       = 3  # Added timeout for probe request
+        initial_delay_seconds = 10
+        period_seconds        = 10
+        failure_threshold     = 6
+        timeout_seconds       = 5
+      }
+
+      liveness_probe {
+        http_get {
+          path = "/liveness"
+          port = 9090
+        }
+        initial_delay_seconds = 60
+        period_seconds        = 10
+        failure_threshold     = 3
+        timeout_seconds       = 5
       }
     }
 
