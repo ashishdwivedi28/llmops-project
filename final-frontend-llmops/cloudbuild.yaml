@@ -32,4 +32,9 @@ steps:
 
 substitutions:
   _REGION: us-central1
-  _SERVICE_NAME: llmops-frontend
+  _SERVICE_NAME: llmops-frontend-dev
+  _IMAGE_URI: us-central1-docker.pkg.dev/search-ahmed/llmops-repo/llmops-frontend:${SHORT_SHA}
+  _BACKEND_URL: https://llmops-backend-dev-oxigyhdstq-uc.a.run.app
+
+options:
+  machineType: 'E2_HIGHCPU_8'
