@@ -34,7 +34,7 @@ IMAGE_URI="us-central1-docker.pkg.dev/$PROJECT_ID/llmops-repo/llmops-frontend:$I
 gcloud builds submit \
   --project="$PROJECT_ID" \
   --config=cloudbuild.yaml \
-  --substitutions="_BACKEND_URL=$BACKEND_URL,_IMAGE_URI=$IMAGE_URI,SHORT_SHA=$IMAGE_TAG"
+  --substitutions="_BACKEND_URL=$BACKEND_URL,_IMAGE_URI=$IMAGE_URI,_SERVICE_NAME=llmops-frontend-$ENVIRONMENT"
 
 echo "✅ Image built and pushed: $IMAGE_URI"
 echo ""

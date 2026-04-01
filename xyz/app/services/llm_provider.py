@@ -52,10 +52,10 @@ _MODEL_MAP = {
 
     # Gemini 3.x models (experimental - may not be available in all projects)
     # Uncomment when these models become publicly available or if your project has access
-    # "gemini-3-flash-preview": "vertex_ai/gemini-3-flash-preview",
-    # "gemini-3-pro-preview": "vertex_ai/gemini-3-pro-preview",
-    # "gemini-3.1-flash-preview": "vertex_ai/gemini-3.1-flash-preview",
-    # "gemini-3.1-pro-preview": "vertex_ai/gemini-3.1-pro-preview",
+    "gemini-3-flash-preview": "vertex_ai/gemini-3-flash-preview",
+    "gemini-3-pro-preview": "vertex_ai/gemini-3-pro-preview",
+    "gemini-3.1-flash-preview": "vertex_ai/gemini-3.1-flash-preview",
+    "gemini-3.1-pro-preview": "vertex_ai/gemini-3.1-pro-preview",
 
     # Claude
     "claude": "claude-3-opus-20240229",
