@@ -108,10 +108,7 @@ def _is_safe_select_query(sql_query: str) -> bool:
 
     # Check for comment-based injection attempts (-- or /* */)
     # These could be used to comment out validation checks
-    if "--" in sql_query or "/*" in sql_query or "*/" in sql_query:
-        return False
-
-    return True
+    return not ("--" in sql_query or "/*" in sql_query or "*/" in sql_query)
 
 
 def list_gcs_files(bucket_name: str, prefix: str = "") -> str:
